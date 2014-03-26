@@ -1,0 +1,1395 @@
+/*
+ * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
+ *
+ * Copyright (C) 2013 Jakob Flierl <jakob.flierl@gmail.com>
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation:
+ *  version 2.1 of the License.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ *  MA  02110-1301  USA
+ */
+
+#define HAVE_SERIAL
+#define HAVE_SPACENAV
+// #define HAVE_SOCKET
+// #define ENABLE_FPS_LIMIT
+#define DEFAULT_FPS 50
+
+#include <stdio.h>
+#include <stdarg.h>
+#include <math.h>
+
+#include <GL/glu.h>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_opengl.h>
+
+#include <curses.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#ifdef HAVE_SPACENAV
+#include <linux/input.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
+
+#ifdef HAVE_SERIAL
+#include <libserialport.h>
+#endif
+
+int view_mode = 0;
+int width = 700, height = 700;
+TTF_Font *sdl_font;
+
+SDL_Window   *sdl_window;
+SDL_GLContext sdl_context;
+
+typedef struct {
+    double d1, d5, a2, a3; // dh parameters
+
+    struct joint_s {
+        double pos;
+        double min;
+        double max;
+    } j[5]; // joints
+
+    double t[16];  // tool matrix
+    int  err;      // error a to joint number if inverse kinematics fails
+    char msg[512]; // opt. message from inverse kinematics
+} bot_t;
+
+#define rad2deg(rad) ((rad)*(180.0/M_PI))
+#define deg2rad(deg) ((deg)*(M_PI/180.0))
+#define sq(x) ((x)*(x))
+
+void rotate_m_axyz(double *mat, double angle, double x, double y, double z ) {
+    int i;
+
+    double m[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+    double s = sin( deg2rad(angle) );
+    double c = cos( deg2rad(angle) );
+
+    double mag = sqrt(sq(x) + sq(y) + sq(z));
+    if (mag <= 1.0e-4) { return; } // no rotation, leave mat as-is
+    x /= mag; y /= mag; z /= mag;
+
+    double one_c = 1.0 - c;
+#define M(row,col)  m[col*4+row]
+    M(0,0) = (one_c * sq(x)) + c;
+    M(0,1) = (one_c * x*y) - z*s;
+    M(0,2) = (one_c * z*x) + y*s;
+
+    M(1,0) = (one_c * x*y) + z*s;
+    M(1,1) = (one_c * sq(y)) + c;
+    M(1,2) = (one_c * y*z) - x*s;
+
+    M(2,0) = (one_c * z*x) - y*s;
+    M(2,1) = (one_c * y*z) + x*s;
+    M(2,2) = (one_c * sq(z)) + c;
+#undef M
+
+    for (i = 0; i < 4; i++) {
+#define A(row,col)  mat[(col<<2)+row]
+#define B(row,col)  m[(col<<2)+row]
+        double ai0=A(i,0), ai1=A(i,1), ai2=A(i,2), ai3=A(i,3);
+        A(i,0) = ai0 * B(0,0) + ai1 * B(1,0) + ai2 * B(2,0) + ai3 * B(3,0);
+        A(i,1) = ai0 * B(0,1) + ai1 * B(1,1) + ai2 * B(2,1) + ai3 * B(3,1);
+        A(i,2) = ai0 * B(0,2) + ai1 * B(1,2) + ai2 * B(2,2) + ai3 * B(3,2);
+        A(i,3) = ai0 * B(0,3) + ai1 * B(1,3) + ai2 * B(2,3) + ai3 * B(3,3);
+#undef A
+#undef B
+    }
+
+}
+
+void cross(float th, float l) {
+    glLineWidth(th);
+    glBegin(GL_LINES);
+    glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(l, 0, 0);
+    glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, l, 0);
+    glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, l);
+    glEnd();
+    glLineWidth(1);
+}
+
+#define RPY_P_FUZZ (0.000001)
+
+int pmMatRpyConvert(double m[], double *r, double *p, double *y) {
+    *p = atan2(-m[2], sqrt(sq(m[0]) + sq(m[1])));
+
+    if (fabs(*p - (2 * M_PI)) < RPY_P_FUZZ) {
+        *r = atan2(m[4], m[5]);
+        *p = (2 * M_PI);
+        *y = 0.0;
+    } else if (fabs(*p + (2 * M_PI)) < RPY_P_FUZZ) {
+        *r = -atan2(m[6], m[5]);
+        *p = -(2 * M_PI);
+        *y = 0.0;
+    } else {
+        *r = atan2(m[6], m[10]);
+        *y = atan2(m[1], m[0]);
+    }
+
+    return 0;
+}
+
+void kins_fwd(bot_t *bot) {
+    double tr1 = deg2rad(bot->j[0].pos);
+    double tr2 = deg2rad(bot->j[1].pos);
+    double tr3 = deg2rad(bot->j[2].pos);
+    double tr4 = deg2rad(bot->j[3].pos);
+    double tr5 = deg2rad(bot->j[4].pos);
+
+    double C234 = cos(tr2+tr3+tr4);
+    double S234 = sin(tr2+tr3+tr4);
+    double C23  = cos(tr2+tr3);
+    double S23  = sin(tr2+tr3);
+    double S1   = sin(tr1);
+    double C1   = cos(tr1);
+    double S2   = sin(tr2);
+    double C2   = cos(tr2);
+    double S5   = sin(tr5);
+    double C5   = cos(tr5);
+
+    double px = C1*(bot->d5*S234 + bot->a3*C23 + bot->a2*C2);
+    double py = S1*(bot->d5*S234 + bot->a3*C23 + bot->a2*C2);
+    double pz = bot->d1 - bot->d5*C234 + bot->a3*S23 + bot->a2*S2;
+
+    bot->t[0] =   C1*C5*C234 - S1*S5;
+    bot->t[1] =   C5*S234;
+    bot->t[2] = - S1*C5*C234 - C1*S5;
+	bot->t[3] = 0;
+
+    bot->t[4] = -C1*S234;
+    bot->t[5] =  C234;
+    bot->t[6] =  S1*S234;
+	bot->t[7] = 0;
+
+    bot->t[8]  = S1*C5 + C1*C234*S5;
+    bot->t[9]  = S5*S234;
+    bot->t[10] = C1*C5 - S1*C234*S5;
+	bot->t[11] = 0;
+
+    bot->t[12] = px;
+    bot->t[13] = pz;
+    bot->t[14] = py;
+
+    bot->t[15] = 1;
+}
+
+void kins_inv(bot_t* bot) {
+
+    double nx = -bot->t[0], ny =  bot->t[2];
+    double ox =  bot->t[8], oy = -bot->t[10];
+    double ax = -bot->t[4], ay =  bot->t[6],  az = -bot->t[5];
+
+    double px = bot->t[12];
+    double pz = bot->t[13];
+    double py = bot->t[14];
+
+    double th1;
+
+    if (py == 0 && px == 0) {     // point on the Z0 axis
+        if (ay == 0 && ax == 0) { // wrist pointing straight up/down
+            th1 = 0;
+        } else {
+            th1 = atan2(ay, ax);
+        }
+    } else {
+        th1 = atan2(py, px);
+    }
+
+    double c1 = cos(th1);
+    double s1 = sin(th1);
+
+    double t234 = atan2(c1*ax + s1*ay, -az);
+    double c234 = cos(t234);
+    double s234 = sin(t234);
+
+    // joint 3 - elbow
+    double tp1 = c1*px + s1*py - bot->d5*s234;
+    double tp2 = pz - bot->d1 + bot->d5*c234;
+    double c3  = (sq(tp1) + sq(tp2) - sq(bot->a3) - sq(bot->a2)) / (2*bot->a2*bot->a3);
+    double s3  = -sqrt(1 - sq(c3));
+    double th3 = atan2(s3, c3);
+
+    // joint 2 - shoulder
+    double num = tp2*(bot->a3*c3 + bot->a2) - bot->a3*s3*tp1;
+    double den = tp1*(bot->a3*c3 + bot->a2) + bot->a3*s3*tp2;
+    double th2 = atan2(num, den);
+
+    // joint 4 - pitch
+    double th4 = (t234 - th3 - th2);
+
+    // joint 5 - roll
+    double th5 = atan2(s1*nx - c1*ny, s1*ox - c1*oy);
+
+    char msg[5][256];
+    double th[] = {th1, th2, th3, th4, th5};
+    int i;
+
+    bot->err = 0;
+
+    for (i = 0; i < 5; i++) {
+#ifdef KINS_INV_IGNORE_LIMITS
+        if (!isnan(th[i])) {
+#else
+            if (!isnan(th[i]) && th[i] >= deg2rad(bot->j[i].min) && th[i] <= deg2rad(bot->j[i].max)) {
+#endif
+                bot->j[i].pos = rad2deg(th[i]);
+            } else {
+                bot->err |= (1 << i);
+            }
+
+            // pretty print results
+
+            if (isnan(th[i])) {
+                snprintf(msg[i], sizeof(msg[i]), "%7s ", "nan");
+            } else if (th[i] < deg2rad(bot->j[i].min)) {
+                snprintf(msg[i], sizeof(msg[i]), "%7.2fv", rad2deg(th[i]));
+            } else if (th[i] > deg2rad(bot->j[i].max)) {
+                snprintf(msg[i], sizeof(msg[i]), "%7.2f^", rad2deg(th[i]));
+            } else {
+                snprintf(msg[i], sizeof(msg[i]), "%7.2f ", rad2deg(th[i]));
+            }
+        }
+
+        snprintf(bot->msg, sizeof(bot->msg), "kin_inv(%d): %s %s %s %s %s", bot->err, msg[0], msg[1], msg[2], msg[3], msg[4]);
+    }
+
+    void text(int x, int y, TTF_Font *font, const char * format, ...) {
+        char buffer[256];
+        va_list args;
+
+        if (!font) { return; }
+
+        va_start (args, format);
+        vsnprintf (buffer, 255, format, args);
+
+        SDL_Color col = {255, 255, 255};
+        SDL_Surface *msg = TTF_RenderText_Blended(font, buffer, col);
+        unsigned tex = 0;
+
+        glGenTextures(1, &tex);
+        glBindTexture(GL_TEXTURE_2D, tex);
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, msg->w, msg->h, 0, GL_BGRA,
+                     GL_UNSIGNED_BYTE, msg->pixels);
+
+        int z = 1;
+
+        glBegin(GL_QUADS);
+        glTexCoord2d(0, 0); glVertex3d(x, y, z);
+        glTexCoord2d(1, 0); glVertex3d(x+msg->w, y, z);
+        glTexCoord2d(1, 1); glVertex3d(x+msg->w, y+msg->h, z);
+        glTexCoord2d(0, 1); glVertex3d(x, y+msg->h, z);
+        glEnd();
+
+        glDeleteTextures(1, &tex);
+        SDL_FreeSurface(msg);
+
+        va_end (args);
+    }
+
+    void text_matrix(int x, int y, double m[]) {
+        int i, j;
+        for (i = 0; i < 4; i++) {
+            for (j = 0; j < 4; j++) {
+                text(x + 75 * i, y + TTF_FontHeight(sdl_font) * j, sdl_font, "%8.2f", m[4*i+j]);
+            }
+        }
+    }
+
+    void cube( GLfloat dSize, int wire ) {
+        float size = dSize * 0.5;
+
+#   define V(a,b,c) glVertex3d( a size, b size, c size );
+#   define N(a,b,c) glNormal3d( a, b, c );
+
+        if (wire) {
+            glBegin( GL_LINE_LOOP ); N( 1.0, 0.0, 0.0); V(+,-,+); V(+,-,-); V(+,+,-); V(+,+,+); glEnd();
+            glBegin( GL_LINE_LOOP ); N( 0.0, 1.0, 0.0); V(+,+,+); V(+,+,-); V(-,+,-); V(-,+,+); glEnd();
+            glBegin( GL_LINE_LOOP ); N( 0.0, 0.0, 1.0); V(+,+,+); V(-,+,+); V(-,-,+); V(+,-,+); glEnd();
+            glBegin( GL_LINE_LOOP ); N(-1.0, 0.0, 0.0); V(-,-,+); V(-,+,+); V(-,+,-); V(-,-,-); glEnd();
+            glBegin( GL_LINE_LOOP ); N( 0.0,-1.0, 0.0); V(-,-,+); V(-,-,-); V(+,-,-); V(+,-,+); glEnd();
+            glBegin( GL_LINE_LOOP ); N( 0.0, 0.0,-1.0); V(-,-,-); V(-,+,-); V(+,+,-); V(+,-,-); glEnd();
+        } else {
+            glBegin( GL_QUADS );
+            N( 1.0, 0.0, 0.0); V(+,-,+); V(+,-,-); V(+,+,-); V(+,+,+);
+            N( 0.0, 1.0, 0.0); V(+,+,+); V(+,+,-); V(-,+,-); V(-,+,+);
+            N( 0.0, 0.0, 1.0); V(+,+,+); V(-,+,+); V(-,-,+); V(+,-,+);
+            N(-1.0, 0.0, 0.0); V(-,-,+); V(-,+,+); V(-,+,-); V(-,-,-);
+            N( 0.0,-1.0, 0.0); V(-,-,+); V(-,-,-); V(+,-,-); V(+,-,+);
+            N( 0.0, 0.0,-1.0); V(-,-,-); V(-,+,-); V(+,+,-); V(+,-,-);
+            glEnd();
+        }
+#   undef V
+#   undef N
+    }
+
+    GLUquadricObj *create_quadric(int wire) {
+        GLUquadricObj *qobj = gluNewQuadric();
+        if (!wire) {
+            gluQuadricDrawStyle(qobj, GLU_FILL);
+        } else {
+            gluQuadricDrawStyle(qobj, GLU_LINE);
+        }
+        return qobj;
+    }
+
+    void cylinder(int wire, double BASE, double TOP, double HEIGHT, double SLICES, double STACKS) {
+        GLUquadricObj *QUAD = create_quadric(wire);
+
+        gluCylinder (QUAD, BASE, TOP, HEIGHT, SLICES, STACKS);
+
+        if (!wire) {
+            glRotatef(180, 1, 0, 0);
+            gluDisk(QUAD, 0.0, BASE, SLICES, 1);
+            glRotatef(180, 1, 0, 0);
+            glTranslatef(0.0, 0.0, HEIGHT);
+            gluDisk(QUAD, 0.0, TOP, SLICES, 1);
+        }
+
+        gluDeleteQuadric(QUAD);
+    }
+
+    void draw_bot(int wire, bot_t *bot) {
+        glPushMatrix();
+
+        glTranslatef (0.0, bot->d1, 0.0);
+
+        cross(4, 1);
+
+        if (!wire) {
+            glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+        } else {
+            glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+        }
+
+        // link1 - base
+
+        glColor3f(0.25, 0.25, 0.25);
+
+        glPushMatrix();
+        glTranslatef (-0.5, -1.875, 0);
+        glScalef (2, 0.75, 2);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef (0, -1.75, 0);
+        glScalef (1-0.05, 1.0-0.05, 1.25-0.05);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef (0.0, -1.175 - 0.65 / 2, 0);
+        glRotatef (-90, 1, 0, 0);
+        glScalef (1.0, 1.0, 1.0);
+        glColor3f(0.5, 0.5, 0.5);
+
+        cylinder(wire, 0.35, 0.35, 0.65, 16, 1);
+
+        glPopMatrix();
+
+        // link2 - body
+
+        glColor3f(1.0, 0.44, 0.176);
+
+        glPushMatrix();
+        glTranslatef (0, 0.0, 0.0);
+        glRotatef (bot->j[0].pos, 0.0, 1.0, 0.0);
+        glTranslatef (0, 0.0, 0.0);
+
+        glPushMatrix();
+        glTranslatef (-0.75, -0.45, 0.0);
+        glScalef (2.5, 0.9, 1.2);
+        cube (1.001, wire);
+        glPopMatrix();
+
+        glPushMatrix();
+        glRotatef (14, 0.0, 0.0, 1.0);
+        glTranslatef (-0.975, 0.05, 0.0);
+        glScalef (1.9, 0.9, 1.2);
+        cube (0.999, wire);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef (0.0, 0, -1.2/2);
+        glRotatef (-90, 0.0, 0.0, 1.0);
+        glScalef (1.0, 1.0, 1.0);
+        cylinder(wire, 0.5, 0.5, 1.2, 16, 1);
+        glPopMatrix();
+
+        if (!wire) {
+            glPushMatrix();
+            glTranslatef (0.0, 0, -1.4/2);
+            glRotatef (-90, 0.0, 0.0, 1.0);
+            glScalef (1.0, 1.0, 1.0);
+            cylinder(wire, 0.15, 0.15, 1.4, 16, 1);
+            glPopMatrix();
+        }
+
+        glColor3f(1.0, 0.44, 0.176);
+
+        glPushMatrix();
+        glTranslatef (0.0, 0, -bot->d5/2);
+        glRotatef (-90, 0.0, 0.0, 1.0);
+        glScalef (1.0, 1.0, 1.0);
+        cylinder(wire, 0.35, 0.35, bot->d5, 16, 1);
+        glPopMatrix();
+
+        // link3 - upperarm
+
+        glColor3f(1.0, 0.44, 0.176);
+
+        glRotatef (bot->j[1].pos, 0.0, 0.0, 1.0);
+
+        glPushMatrix();
+        glTranslatef (1.1, 0.0, 0.0);
+        glScalef (bot->a2, 1.0, 1.0);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        if (!wire) {
+            glPushMatrix();
+            glTranslatef (0, 0, -0.5);
+            glRotatef (-90, 0.0, 0.0, 1.0);
+            glScalef (1.0, 1.0, 1.0);
+            cylinder(wire, 0.5, 0.5, 1, 16, 1);
+            glPopMatrix();
+
+            glPushMatrix();
+            glTranslatef (bot->a2, 0, -0.5);
+            glRotatef (-90, 0.0, 0.0, 1.0);
+            glScalef (1.0, 1.0, 1.0);
+            cylinder(wire, 0.5, 0.5, 1, 16, 1);
+            glPopMatrix();
+
+            glPushMatrix();
+            glTranslatef (bot->a2, 0, -1.1/2);
+            glRotatef (-90, 0.0, 0.0, 1.0);
+            glScalef (1.0, 1.0, 1.0);
+            cylinder(wire, 0.25, 0.25, 1.1, 16, 1);
+            glPopMatrix();
+
+            glPushMatrix();
+            glTranslatef (bot->a2, 0, -1.2/2);
+            glRotatef (-90, 0.0, 0.0, 1.0);
+            glScalef (1.0, 1.0, 1.0);
+            cylinder(wire, 0.15, 0.15, 1.2, 16, 1);
+            glPopMatrix();
+        }
+
+        // link4 - forearm
+
+        glTranslatef(bot->a2,0,0);
+        glRotatef (bot->j[2].pos, 0.0, 0.0, 1.0);
+
+        glPushMatrix();
+        glTranslatef (0.6, 0.0, 0.0);
+        glScalef (1.2, 0.8, 0.9);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef (0, 0, -0.45);
+        glRotatef (-90, 0.0, 0.0, 1.0);
+        glScalef (1.0, 1.0, 1.0);
+        cylinder(wire, 0.4, 0.4, 0.9, 16, 1);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef (1.2, 0, -0.45);
+        glRotatef (-90, 0.0, 0.0, 1.0);
+        glScalef (1.0, 1.0, 1.0);
+        cylinder(wire, 0.4, 0.4, 0.9, 16, 1);
+        glPopMatrix();
+
+        // link5 - wrist pitch
+
+        glColor3f(0.25, 0.25, 0.25);
+
+        glTranslatef(bot->a3,0,0);
+        glRotatef (bot->j[3].pos, 0.0, 0.0, 1.0);
+
+        glPushMatrix();
+        glTranslatef (0, 0, -0.6);
+        glRotatef (-90, 0.0, 0.0, 1.0);
+        cylinder(wire, 0.3, 0.3, 1.2, 22, 1);
+        glPopMatrix();
+
+        glColor3f(0.5, 0.5, 0.5);
+
+        // link6 - hand
+
+        glColor3f(0.25, 0.25, 0.25);
+
+        glRotatef (bot->j[4].pos, 0.0, 1.0, 0.0);
+
+        glPushMatrix();
+        glRotatef (90, 1.0, 0.0, 0.0);
+        cylinder(wire, 0.13, 0.13, 0.5, 22, 1);
+        glPopMatrix();
+
+        glColor3f(0.15, 0.15, 0.15);
+
+        glPushMatrix();
+        glTranslatef (0.0, -0.7, 0.0);
+        glScalef (0.5, 0.4, 0.4);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef (0.0, -1.02, 0.0);
+        glScalef (0.8, 0.25, 0.4);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        glDisable (GL_LIGHTING);
+        glDisable (GL_COLOR_MATERIAL);
+
+        glTranslatef (0, -bot->d5, 0);
+
+        cross(4, 0.5);
+
+        glPopMatrix();
+
+        glPopMatrix();
+    }
+
+    void scene(bot_t *bot_fwd, bot_t *bot_inv) {
+        glEnable(GL_LIGHTING);
+        glEnable(GL_COLOR_MATERIAL);
+
+        // table
+
+        glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+
+        glColor3f(0.001, 0.001, 0.001);
+
+        int x;
+        for (x = -50; x <= 50; x+=5) {
+            glPushMatrix();
+            glTranslatef (-0.5 + x * .1, 0, 0);
+            glScalef (.05, .01, 10.0);
+            cube (1.0, 0);
+            glPopMatrix();
+            glPushMatrix();
+            glTranslatef (-0.5, 0, x * .1);
+            glScalef (10.0, .01, .05);
+            cube (1.0, 0);
+            glPopMatrix();
+        }
+
+        draw_bot(0, bot_fwd);
+        draw_bot(1, bot_inv);
+    }
+
+    void draw_hud(bot_t* bot) {
+        glMatrixMode(GL_MODELVIEW);
+
+        glViewport(0, 0, width, height);
+
+        glMatrixMode(GL_PROJECTION);
+
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0.0, width, height, 0.0, -1.0, 10.0);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glColor3f(1,0.2f,0.2f);
+
+        glEnable( GL_BLEND );
+        glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+        glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+
+        glColor3ub( 25, 200, 25 );
+
+        int i;
+        for (i = 0; i < 5; i++) {
+            text(15, 10+i*TTF_FontHeight(sdl_font), sdl_font, "%d: %7.2f", i+1, bot->j[i].pos);
+        }
+
+        text(15, 10+6*TTF_FontHeight(sdl_font), sdl_font, "x: %7.2f", bot->t[12]);
+        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "y: %7.2f", bot->t[13]);
+        text(15, 10+8*TTF_FontHeight(sdl_font), sdl_font, "z: %7.2f", bot->t[14]);
+
+        double r, p, y;
+
+        pmMatRpyConvert(bot->t, &r, &p, &y);
+
+        text(15, 10+10*TTF_FontHeight(sdl_font), sdl_font, "a: %7.2f", rad2deg(r));
+        text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "b: %7.2f", rad2deg(p));
+        text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "c: %7.2f", rad2deg(y));
+
+        text(width - 370,10, sdl_font, "tool"); text_matrix(width - 320, 10, bot->t);
+
+        if (strlen(bot->msg)) {
+            text(15, height - TTF_FontHeight(sdl_font) * 1.5, sdl_font, bot->msg);
+        }
+
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+
+        glMatrixMode(GL_MODELVIEW);
+    }
+
+    void display(bot_t *bot_fwd, bot_t *bot_inv) {
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClearDepth(1.0);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glLoadIdentity();
+
+        if (view_mode == 0) {
+            glViewport(0, 0, width, height);
+        } else {
+            glViewport(0, 0, width / 2, height / 2);
+        }
+
+        glPushMatrix();
+        glTranslatef(0, 0, -10);
+        glRotatef(15, 1, 0, 0); // glRotatef(rotate_x, 0, 1, 0);
+        glTranslatef(0, -2, 0);
+
+        scene(bot_fwd, bot_inv);
+
+        glPopMatrix();
+
+        glMatrixMode(GL_PROJECTION);
+
+        if (view_mode != 0) {
+            glPushMatrix();
+
+            glLoadIdentity();
+#define DIM 4.5
+            if (height > width) {
+                glOrtho(-DIM, DIM, -DIM * (height / (width * 1.0)), DIM * (height / (width * 1.0)), -DIM*2, DIM*2);
+            } else {
+                glOrtho(-DIM * (width / (height * 1.0)), DIM * (width / (height * 1.0)), -DIM, DIM, -DIM*2, DIM*2);
+            }
+#undef DIM
+            glMatrixMode(GL_MODELVIEW);
+
+            glViewport(0, height / 2 + 1, width / 2 + 1, height / 2);
+            glPushMatrix();
+            glTranslatef(0,-3,0);
+            glRotatef(90, 0, -1, 0);
+
+            scene(bot_fwd, bot_inv);
+
+            glPopMatrix();
+
+            glViewport(width / 2 + 1, height / 2 + 1, width / 2, height / 2);
+            glPushMatrix();
+            glTranslatef(0,-3,0);
+            scene(bot_fwd, bot_inv);
+            glPopMatrix();
+
+            glViewport(width / 2 + 1, 0, width / 2, height / 2);
+            glPushMatrix();
+            //glTranslatef( -2,0,0);
+            glRotatef(90, 1, 0, 0);
+            scene(bot_fwd, bot_inv);
+            glPopMatrix();
+
+            glMatrixMode(GL_PROJECTION);
+        }
+
+        glPopMatrix();
+
+        draw_hud(bot_inv);
+
+        glFlush();
+
+        SDL_GL_SwapWindow(sdl_window);
+    }
+
+    int do_kins_fwd = 1;
+    int do_kins_inv = 0;
+
+    void jog_joint(bot_t* bot, int i, double amount) {
+        double tmp = bot->j[i].pos + amount;
+
+        if (amount > 0) {
+            bot->j[i].pos = fmin(tmp, bot->j[i].max);
+            do_kins_fwd = 1;
+        } else {
+            bot->j[i].pos = fmax(tmp, bot->j[i].min);
+            do_kins_fwd = 1;
+        }
+    }
+
+    void move_tool(bot_t* bot, int i, double amount) {
+        bot->t[12+i] += amount;
+        do_kins_inv = 1;
+    }
+
+    void rotate_tool(bot_t* bot, double a, double x, double y, double z) {
+        rotate_m_axyz(bot->t, a, x, y, z);
+        do_kins_inv = 1;
+    }
+
+#ifdef HAVE_SPACENAV
+
+    typedef struct {
+        int fd;
+        int pos[6];
+        int key[2];
+    } spacenav_t;
+
+#define test_bit(bit, array) (array[bit/8] & (1<<(bit%8)))
+
+    int spacenav_open(void) {
+        char fname[20];
+        struct input_id id;
+
+        int i = 0;
+        while (i < 64) {
+            snprintf(fname, sizeof(fname), "/dev/input/event%d", i++);
+            int fd = open(fname, O_RDWR | O_NONBLOCK);
+            if (fd > 0) {
+                ioctl(fd, EVIOCGID, &id);
+
+                if (id.vendor == 0x046d && (id.product == 0xc626 || id.product == 0xc623 || id.product == 0xc603)) {
+                    // fprintf(stderr, "Using device: %s\n", fname);
+                    return fd;
+                }
+
+                close(fd);
+            }
+        }
+
+        return 0;
+    }
+
+    void spacenav_close(spacenav_t *s) {
+        if (s->fd) {
+            close(s->fd);
+        }
+    }
+
+    void spacenav_read(spacenav_t *s) {
+        struct input_event ev;
+
+        int n;
+        while ((n = read(s->fd, &ev, sizeof(struct input_event))) > 0) {
+            // fprintf(stderr, "spacenav_read %d bytes.\n", n);
+
+            if (n >= sizeof(struct input_event)) {
+                switch (ev.type) {
+                case EV_KEY:
+                    s->key[ev.code] = ev.value; // fprintf(stderr, "Key %d pressed %d.\n", ev.code, ev.value);
+                    break;
+                case EV_REL:
+                    s->pos[ev.code] = ev.value; // fprintf(stderr, "REL %d %d\n", ev.code, ev.value);
+                    break;
+                case EV_ABS:
+                    s->pos[ev.code] = ev.value; // fprintf(stderr, "ABS %d %d\n", ev.code, ev.value);
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+
+#endif
+
+    void update_model(bot_t *bot_fwd, bot_t* bot_inv, int do_kins_fwd, int do_kins_inv) {
+        if (do_kins_inv) {
+            kins_inv(bot_inv);
+            if (bot_inv->err == 0) {
+                kins_fwd(bot_inv);
+                memcpy(bot_fwd, bot_inv, sizeof(bot_t));
+            } else {
+                memcpy(bot_inv, bot_fwd, sizeof(bot_t));
+            }
+        } else if (do_kins_fwd) {
+            kins_fwd(bot_fwd);
+            memcpy(bot_inv, bot_fwd, sizeof(bot_t));
+        }
+    }
+
+#ifdef HAVE_SOCKET
+
+    int sock_printf(int sock, const char * format, ...) {
+        char buffer[256];
+        va_list args;
+
+        if (!sock) {
+            return -1;
+        }
+
+        va_start (args, format);
+        vsnprintf (buffer, 255, format, args);
+
+        int err = write(sock, buffer, strlen(buffer));
+
+        va_end(args);
+
+        return err;
+    }
+
+    void sock_close(int sock) {
+        if (sock) {
+            close(sock);
+        }
+    }
+
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <errno.h>
+
+    typedef struct {
+        int opt;
+        int master_socket, addrlen, new_socket, client_socket[30], max_clients, activity, i, valread, sd;
+        int max_sd;
+        struct sockaddr_in address;
+
+        char buffer[1025];
+        fd_set readfds;
+
+        char *message;
+    } net_t;
+
+    int net_init(net_t *net, int port) {
+        int i;
+
+        net->opt = 1; // allow multiple connections
+        net->max_clients = 30;
+        net->message = "ECHO Daemon v1.0 \r\n";
+
+        for (i = 0; i < net->max_clients; i++) {
+            net->client_socket[i] = 0;
+        }
+
+        if ((net->master_socket = socket(AF_INET , SOCK_STREAM , 0)) == 0) {
+            perror("socket failed");
+            return (EXIT_FAILURE);
+        }
+
+        if (setsockopt(net->master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&net->opt, sizeof(net->opt)) < 0) {
+            perror("setsockopt");
+            return (EXIT_FAILURE);
+        }
+
+        net->address.sin_family = AF_INET;
+        net->address.sin_addr.s_addr = INADDR_ANY;
+        net->address.sin_port = htons(port);
+
+        if (bind(net->master_socket, (struct sockaddr *)&net->address, sizeof(net->address))<0) {
+            perror("bind failed");
+            return (EXIT_FAILURE);
+        }
+        printf("Listening on port %d \n", port);
+
+        if (listen(net->master_socket, 3) < 0) {
+            perror("listen");
+            return (EXIT_FAILURE);
+        }
+
+        net->addrlen = sizeof(net->address);
+
+        return EXIT_SUCCESS;
+    }
+
+#endif
+
+    int main(int argc, char** argv) {
+
+#ifdef HAVE_SOCKET
+#define PORT 8888
+        net_t net;
+#endif
+
+#ifdef ENABLE_FPS_LIMIT
+        unsigned int ft, frames;
+#endif
+
+        bot_t bot_fwd, bot_inv;
+
+        SDL_Event ev;
+        int done = 0;
+
+        const Uint8 *keys = SDL_GetKeyboardState(0);
+
+        int sdlk_tab_pressed = 0;
+
+        int sdl_flags = SDL_WINDOW_OPENGL;
+        SDL_DisplayMode sdl_displaymode;
+
+        int do_help = 0;
+        int do_daemon = 0;
+
+        int i = 0;
+        while (++i < argc) {
+#define OPTION_SET(longopt,shortopt) (strcmp(argv[i], longopt)==0 || strcmp(argv[i], shortopt)==0)
+#define OPTION_VALUE ((i+1 < argc)?(argv[i+1]):(NULL))
+#define OPTION_VALUE_PROCESSED (i++)
+            if (OPTION_SET("--fullscreen", "-f")) {
+                sdl_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+            } else if (OPTION_SET("--daemon", "-d")) {
+                do_daemon = 1;
+            } else if (OPTION_SET("--help", "-h")) {
+                do_help = 1;
+            } else {
+                fprintf(stderr, "Unknown option: %s\n", argv[i]);
+                do_help = 1;
+            }
+
+        }
+
+        if (do_help) {
+            fprintf(stderr, "Usage: %s [OPTIONS]\n\n"
+                    " Where [OPTIONS] are zero or more of the following:\n\n"
+                    "    [-f|--fullscreen]           Fullscreen mode\n"
+                    "    [-d|--daemon]               Server mode\n"
+                    "    [-h|--help]                 Show help information\n\n"
+                    , argv[0]);
+            return EXIT_SUCCESS;
+        }
+
+        if (do_daemon) {
+#ifdef HAVE_SOCKET
+            net_init(&net, 8888);
+#endif
+
+            initscr();
+            nonl();
+            cbreak();
+            noecho();
+            keypad(stdscr,1);
+            timeout(0); // getch non-blocking
+            if (has_colors()) {
+                start_color();
+                init_pair(1, COLOR_WHITE,COLOR_BLUE);
+                init_pair(2, COLOR_BLUE,COLOR_WHITE);
+                init_pair(3, COLOR_RED,COLOR_WHITE);
+            }
+            curs_set(0);
+
+            struct winsize w;
+            ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+            WINDOW *menubar,*messagebar;
+
+            menubar    = subwin(stdscr, 1, w.ws_col, 0, 0);
+            messagebar = subwin(stdscr, 1, w.ws_col-1, w.ws_row-1, 1);
+            wbkgd(menubar, COLOR_PAIR(2));
+            wbkgd(messagebar, COLOR_PAIR(2));
+
+            werase(menubar);
+            wrefresh(menubar);
+
+            werase(messagebar);
+            wrefresh(messagebar);
+
+            wprintw(menubar, "Mitsubishi RM-501 Movemaster II Robot Simulator");
+            wprintw(messagebar, "Status: DISCONNECTED, OFFLINE");
+
+            int key;
+
+            while (!done) {
+
+                key=getch();
+
+                if (key=='q') {
+                    done = 1;
+                }
+
+                for (i = 0; i < 5; i++) {
+                    move(2+i,1);
+                    printw("%d:", i);
+                }
+
+                move(8,1); printw("x:");
+                move(9,1); printw("y:");
+                move(10,1); printw("z:");
+
+                move(12,1); printw("a:");
+                move(13,1); printw("b:");
+                move(14,1); printw("c:");
+
+                touchwin(stdscr);
+                refresh();
+
+#ifdef HAVE_SOCKET
+                FD_ZERO(&net.readfds);
+                FD_SET(net.master_socket, &net.readfds);
+                net.max_sd = net.master_socket;
+
+                for ( i = 0 ; i < net.max_clients ; i++) {
+                    net.sd = net.client_socket[i];
+
+                    if (net.sd > 0) {
+                        FD_SET( net.sd , &net.readfds);
+                    }
+
+                    if (net.sd > net.max_sd) {
+                        net.max_sd = net.sd;
+                    }
+                }
+
+                struct timeval tv;
+                tv.tv_sec = 0;
+                tv.tv_usec = 0;
+
+                net.activity = select( net.max_sd + 1 , &net.readfds , NULL , NULL , &tv);
+
+                if ((net.activity < 0) && (errno!=EINTR)) {
+                    printf("select error");
+                }
+
+                if (FD_ISSET(net.master_socket, &net.readfds)) {
+                    if ((net.new_socket = accept(net.master_socket, (struct sockaddr *)&net.address, (socklen_t*)&net.addrlen))<0) {
+                        perror("accept");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    printf("New connection , socket fd is %d , ip is : %s , port : %d \n",
+                           net.new_socket , inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
+
+                    //sock_printf(net.new_socket, "P %ld %ld %ld %ld %ld\n", net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
+
+                    for (i = 0; i < net.max_clients; i++) {
+                        if (net.client_socket[i] == 0) {
+                            net.client_socket[i] = net.new_socket;
+                            printf("Adding to list of sockets as %d\n" , i);
+
+                            break;
+                        }
+                    }
+                }
+
+                for (i = 0; i < net.max_clients; i++) {
+                    net.sd = net.client_socket[i];
+
+                    if (FD_ISSET( net.sd , &net.readfds)) {
+                        if ((net.valread = read( net.sd , net.buffer, 1024)) == 0) { // check disconnect
+                            getpeername(net.sd , (struct sockaddr*)&net.address , (socklen_t*)&net.addrlen);
+                            printf("Host disconnected , ip %s , port %d \n",
+                                   inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
+
+                            close(net.sd);
+                            net.client_socket[i] = 0;
+                        } else {
+                            net.buffer[net.valread] = '\0';
+                            send(net.sd , net.buffer , strlen(net.buffer) , 0 );
+                        }
+                    }
+                }
+
+                for (i = 0; i < net.max_clients; i++) {
+                    net.sd = net.client_socket[i];
+
+                    // sock_printf(net.sd, "P %ld %ld %ld %ld %ld\n",
+                    // net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
+                }
+#endif
+            }
+
+            delwin(menubar);
+            delwin(messagebar);
+            endwin();
+
+            return EXIT_SUCCESS;
+        }
+
+#ifdef HAVE_SPACENAV
+        spacenav_t sn = {0};
+
+        sn.fd = spacenav_open();
+#endif
+
+        if (SDL_Init(SDL_INIT_VIDEO) < 0)   {
+            fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
+            exit(EXIT_FAILURE);
+        }
+
+        if (TTF_Init() < 0) {
+            fprintf(stderr, "Unable to initialise SDL_ttf.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        char* sdl_font_file = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSansMono.ttf";
+
+        sdl_font = TTF_OpenFont(sdl_font_file, 15);
+
+        if (!sdl_font) {
+            fprintf(stderr, "%s: %s\n", SDL_GetError(), sdl_font_file);
+        }
+
+        if (SDL_GetCurrentDisplayMode(0, &sdl_displaymode) != 0) {
+            fprintf(stderr, "Could not get display mode for video display #%d: %s", 0, SDL_GetError());
+            exit(EXIT_FAILURE);
+        }
+
+        if (sdl_flags & SDL_WINDOW_FULLSCREEN) {
+            width  = sdl_displaymode.w;
+            height = sdl_displaymode.h;
+        }
+
+        sdl_window = SDL_CreateWindow("Mitsubishi RM-501 Movemaster II Robot Simulator",
+                                      SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                                      width, height, sdl_flags);
+
+        sdl_context = SDL_GL_CreateContext(sdl_window);
+
+        SDL_GL_MakeCurrent(sdl_window, sdl_context);
+
+        SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+        // SDL_GL_SetSwapInterval(1);
+
+        {
+            GLfloat pos[4]   = {3., 5., 2., 1.};
+            GLfloat white[4] = {0.75, 0.75, 0.75, 1.};
+            GLfloat black[4] = {0., 0., 0., 0.};
+
+            glDisable (GL_LIGHTING);
+            glEnable (GL_LIGHT1);
+            glLightfv (GL_LIGHT1, GL_POSITION, pos);
+            glLightfv (GL_LIGHT1, GL_DIFFUSE, white);
+            glLightfv (GL_LIGHT1, GL_SPECULAR, black);
+
+            glEnable (GL_COLOR_MATERIAL);
+            glColorMaterial (GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+            glMaterialfv (GL_FRONT, GL_SPECULAR, black);
+        }
+
+        glEnable(GL_TEXTURE_2D);
+
+        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+        glEnable(GL_LINE_SMOOTH);
+        glHint(GL_LINE_SMOOTH_HINT,GL_NICEST);
+
+        glEnable( GL_POLYGON_SMOOTH );
+        glHint( GL_POLYGON_SMOOTH_HINT, GL_NICEST );
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glDepthFunc(GL_LEQUAL);
+        glEnable(GL_DEPTH_TEST);
+        glShadeModel(GL_SMOOTH);
+
+        glMatrixMode(GL_PROJECTION);
+
+        glLoadIdentity();
+        gluPerspective(45, width / (height * 1.0), 0.1, 500);
+
+        glMatrixMode(GL_MODELVIEW);
+
+        bot_fwd.d1 = 2.3;
+        bot_fwd.d5 = 1.3;
+        bot_fwd.a2 = 2.2;
+        bot_fwd.a3 = 1.6;
+
+        bot_fwd.j[0].min = -120;
+        bot_fwd.j[0].max = 180;
+
+        bot_fwd.j[1].min = -30;
+        bot_fwd.j[1].max = 100;
+
+        bot_fwd.j[2].min = -100;
+        bot_fwd.j[2].max = 0;
+
+        bot_fwd.j[3].min = -15;
+        bot_fwd.j[3].max = 195;
+
+        bot_fwd.j[4].min = -360;
+        bot_fwd.j[4].max = 360;
+
+        bot_fwd.j[0].pos = 0;
+        bot_fwd.j[1].pos = 90;
+        bot_fwd.j[2].pos = -90;
+        bot_fwd.j[3].pos = 0;
+        bot_fwd.j[4].pos = 0;
+
+        memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
+        kins_inv(&bot_inv);
+        kins_fwd(&bot_inv);
+        kins_fwd(&bot_fwd);
+
+#ifdef ENABLE_FPS_LIMIT
+        frames = 0;
+        ft = SDL_GetTicks();
+#endif
+
+        while (!done) {
+            SDL_PollEvent(&ev);
+
+            if (ev.type == SDL_QUIT ||
+                (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE))
+                done = 1;
+
+            if (ev.type == SDL_KEYUP && ev.key.keysym.sym == SDLK_TAB) {
+                sdlk_tab_pressed = 0;
+            }
+
+            double d   = 0.05;
+            double cnt = 1.00;
+
+            if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL]) {
+                d   *= 2;
+                cnt *= 2;
+            }
+
+            if (keys[SDL_SCANCODE_Q]) { jog_joint(&bot_fwd, 0,  cnt); }
+            if (keys[SDL_SCANCODE_W]) { jog_joint(&bot_fwd, 1,  cnt); }
+            if (keys[SDL_SCANCODE_E]) { jog_joint(&bot_fwd, 2,  cnt); }
+            if (keys[SDL_SCANCODE_R]) { jog_joint(&bot_fwd, 3,  cnt); }
+            if (keys[SDL_SCANCODE_T]) { jog_joint(&bot_fwd, 4,  cnt); }
+
+            if (keys[SDL_SCANCODE_A]) { jog_joint(&bot_fwd, 0, -cnt); }
+            if (keys[SDL_SCANCODE_S]) { jog_joint(&bot_fwd, 1, -cnt); }
+            if (keys[SDL_SCANCODE_D]) { jog_joint(&bot_fwd, 2, -cnt); }
+            if (keys[SDL_SCANCODE_F]) { jog_joint(&bot_fwd, 3, -cnt); }
+            if (keys[SDL_SCANCODE_G]) { jog_joint(&bot_fwd, 4, -cnt); }
+
+            if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
+                if (keys[SDL_SCANCODE_LEFT])     { move_tool(&bot_inv, 0, -d); }
+                if (keys[SDL_SCANCODE_RIGHT])    { move_tool(&bot_inv, 0,  d); }
+                if (keys[SDL_SCANCODE_I])        { move_tool(&bot_inv, 1,  d); }
+                if (keys[SDL_SCANCODE_K])        { move_tool(&bot_inv, 1, -d); }
+                if (keys[SDL_SCANCODE_UP])       { move_tool(&bot_inv, 2,  d); }
+                if (keys[SDL_SCANCODE_DOWN])     { move_tool(&bot_inv, 2, -d); }
+            } else {
+                if (keys[SDL_SCANCODE_UP])  {
+                    rotate_tool(&bot_inv, -cnt, sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
+                }
+                if (keys[SDL_SCANCODE_DOWN]) {
+                    rotate_tool(&bot_inv,  cnt, sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
+                }
+                if (keys[SDL_SCANCODE_LEFT])  {
+                    rotate_tool(&bot_inv, -cnt, 0, 1, 0);
+                }
+                if (keys[SDL_SCANCODE_RIGHT]) {
+                    rotate_tool(&bot_inv,  cnt, 0, 1, 0);
+                }
+            }
+
+            if (ev.type == SDL_KEYDOWN) {
+
+                switch( ev.key.keysym.sym ) {
+                case SDLK_TAB:
+                    if (!sdlk_tab_pressed) {
+                        if (view_mode == 0) {
+                            view_mode = 1;
+                        } else {
+                            view_mode = 0;
+                        }
+                        sdlk_tab_pressed = 1;
+                    }
+                    break;
+                case SDLK_F1:
+                    bot_fwd.j[0].pos = 0;
+                    bot_fwd.j[1].pos = 45;
+                    bot_fwd.j[2].pos = -45;
+                    bot_fwd.j[3].pos = 0;
+                    bot_fwd.j[4].pos = 0;
+                    do_kins_fwd = 1;
+                    break;
+                default:
+                    break;
+                }
+            }
+
+#ifdef HAVE_SPACENAV
+            if (sn.fd) {
+                spacenav_read(&sn);
+
+#define JOG_MIN 15
+#define JOG_SPEED 0.0001
+#define JOG_SPEED_ROT 0.008
+                if (abs(sn.pos[0]) > JOG_MIN) {
+                    move_tool(&bot_inv, 0, sn.pos[0] * JOG_SPEED);
+                }
+
+                if (abs(sn.pos[1]) > JOG_MIN) {
+                    move_tool(&bot_inv, 2, -sn.pos[1] * JOG_SPEED);
+                }
+
+                if (abs(sn.pos[2]) > JOG_MIN) {
+                    move_tool(&bot_inv, 1, -sn.pos[2] * JOG_SPEED);
+                }
+
+                if (abs(sn.pos[5]) > JOG_MIN) {
+                    rotate_tool(&bot_inv, -sn.pos[5] * JOG_SPEED_ROT, 0, 1, 0);
+                }
+
+#ifdef SPACENAV_JOG_A
+                if (abs(sn.pos[4]) > JOG_MIN) {
+                    rotate_tool(&bot_inv, -sn.pos[4] * JOG_SPEED_ROT,
+                                sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
+                }
+#endif
+                if (sn.key[0]) {
+                    done = 1;
+                }
+            }
+#endif
+
+            update_model(&bot_fwd, &bot_inv, do_kins_fwd, do_kins_inv);
+
+            if (do_kins_inv || do_kins_fwd) {
+                memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
+                kins_inv(&bot_inv);
+                kins_fwd(&bot_inv);
+                kins_fwd(&bot_fwd);
+            }
+
+            do_kins_fwd = 0;
+            do_kins_inv = 0;
+
+            display(&bot_fwd, &bot_inv);
+
+#ifdef ENABLE_FPS_LIMIT
+            while (frames*1000.0/((float)(SDL_GetTicks()-ft+1))>(float)(DEFAULT_FPS)) {
+                SDL_Delay(10);
+            }
+            frames++;
+#endif
+        }
+
+        if (sdl_font) {
+            TTF_CloseFont(sdl_font);
+        }
+
+        TTF_Quit();
+
+        SDL_GL_DeleteContext(sdl_context);
+        SDL_DestroyWindow(sdl_window);
+
+        SDL_Quit();
+
+#ifdef HAVE_SPACENAV
+        spacenav_close(&sn);
+#endif
+
+        return EXIT_SUCCESS;
+    }
