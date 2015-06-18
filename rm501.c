@@ -22,6 +22,7 @@
 // sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
 // for joystick access: sudo usermod -aG input $USER
 
+//#define HAVE_HAL
 //#define HAVE_SERIAL
 #define HAVE_PNG
 #define HAVE_JOYSTICK
@@ -59,6 +60,19 @@
 #ifdef HAVE_PNG
 #include "savepng.h"
 #include "savepng.c"
+#endif
+
+#ifdef HAVE_HAL
+#include "hal.h"
+#define MODULE_NAME "rm501"
+char *modname = MODULE_NAME;
+
+typedef struct {
+    hal_float_t *axis[5];
+} hal_t;
+
+int    hal_comp_id;
+hal_t *hal_pos_data;
 #endif
 
 int view_mode = 0;
@@ -1007,6 +1021,31 @@ int main(int argc, char** argv) {
             return EXIT_SUCCESS;
         }
 
+#ifdef HAVE_HAL
+        // initialize component
+        hal_comp_id = hal_init(modname);
+        if (hal_comp_id < 1) {
+            fprintf(stderr, "%s: ERROR: hal_init failed\n", modname);
+            goto fail0;
+        }
+
+        // allocate hal memory
+        hal_pos_data = hal_malloc(sizeof(hal_t));
+        if (hal_pos_data == NULL) {
+            fprintf(stderr, "%s: ERROR: unable to allocate HAL shared memory\n", modname);
+            goto fail1;
+        }
+
+        // register pins
+        for (i = 0; i < 5; i++) {
+                if (hal_pin_float_newf(HAL_OUT, &(hal_pos_data->axis[i]), hal_comp_id, "%s.%d.pos-cmd", MODULE_NAME, i) != 0) {
+                fprintf(stderr, "%s: ERROR: unable to register hal pin %s.%d.pos-cmd\n", modname, MODULE_NAME, i);
+                goto fail1;
+            }
+        }
+        
+#endif
+
         if (do_daemon) {
 #ifdef HAVE_SOCKET
             net_init(&net, 8888);
@@ -1293,6 +1332,10 @@ int main(int argc, char** argv) {
         ft = SDL_GetTicks();
 #endif
 
+#ifdef HAVE_HAL
+        hal_ready(hal_comp_id);
+#endif
+
         while (!done) {
             SDL_PollEvent(&ev);
 
@@ -1455,6 +1498,12 @@ int main(int argc, char** argv) {
 
             // screenshot(0, 0, "screenshot.png");
 
+#ifdef HAVE_HAL
+            for (i = 0; i < 5; i++) {
+                *(hal_pos_data->axis[i]) = bot_fwd.j[i].pos;
+            }
+#endif
+            
 #ifdef ENABLE_FPS_LIMIT
             while (frames*1000.0/((float)(SDL_GetTicks()-ft+1))>(float)(DEFAULT_FPS)) {
                 SDL_Delay(10);
@@ -1488,5 +1537,10 @@ int main(int argc, char** argv) {
         spacenav_close(&sn);
 #endif
 
+#ifdef HAVE_HAL
+fail1:
+        hal_exit(hal_comp_id);
+fail0:
+#endif
         return EXIT_SUCCESS;
     }
