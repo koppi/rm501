@@ -12,7 +12,7 @@
 
 ## Video
 
-[![Mitsubishi RM-501 Movemaster II Robot Simulator](http://img.youtube.com/vi/lsn_pcq6HSk/0.jpg)](https://www.youtube.com/watch?v=lsn_pcq6HSk)
+[![Mitsubishi RM-501 Movemaster II Robot Simulator](http://img.youtube.com/vi/ddvIzk9aeJo/0.jpg)](https://www.youtube.com/watch?v=ddvIzk9aeJo)
 
 ## Compile and run
 
