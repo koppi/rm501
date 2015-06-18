@@ -1,7 +1,7 @@
 /*
  * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
  *
- * Copyright (C) 2013 Jakob Flierl <jakob.flierl@gmail.com>
+ * Copyright (C) 2013-2015 Jakob Flierl <jakob.flierl@gmail.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -19,10 +19,15 @@
  *  MA  02110-1301  USA
  */
 
-#define HAVE_SERIAL
+// sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
+// for joystick access: sudo usermod -aG input $USER
+
+//#define HAVE_SERIAL
+#define HAVE_PNG
+#define HAVE_JOYSTICK
 #define HAVE_SPACENAV
 // #define HAVE_SOCKET
-// #define ENABLE_FPS_LIMIT
+#define ENABLE_FPS_LIMIT
 #define DEFAULT_FPS 50
 
 #include <stdio.h>
@@ -51,12 +56,27 @@
 #include <libserialport.h>
 #endif
 
+#ifdef HAVE_PNG
+#include "savepng.h"
+#include "savepng.c"
+#endif
+
 int view_mode = 0;
-int width = 700, height = 700;
+const int width = 1280, height = 700; // 720
 TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
+SDL_Renderer *sdl_renderer;
 SDL_GLContext sdl_context;
+
+#ifdef HAVE_PNG
+SDL_Surface *png_shot;
+#endif
+
+#ifdef HAVE_JOYSTICK
+SDL_Joystick* joy = NULL;
+const int JOYSTICK_DEAD_ZONE = 2500;
+#endif
 
 typedef struct {
     double d1, d5, a2, a3; // dh parameters
@@ -919,7 +939,21 @@ void kins_inv(bot_t* bot) {
 
 #endif
 
-    int main(int argc, char** argv) {
+#ifdef HAVE_PNG
+    void screenshot(int x, int y, const char * filename) {
+        unsigned char pixels[width * height * 6];
+        SDL_Surface *infoSurface = SDL_GetWindowSurface(sdl_window);
+        SDL_Surface *sdl_screenshot = SDL_CreateRGBSurfaceFrom(pixels, infoSurface->w, infoSurface->h, infoSurface->format->BitsPerPixel, infoSurface->w * infoSurface->format->BytesPerPixel, infoSurface->format->Rmask, infoSurface->format->Gmask, infoSurface->format->Bmask, infoSurface->format->Amask);
+
+        SDL_RenderReadPixels(sdl_renderer, &infoSurface->clip_rect, infoSurface->format->format, pixels, infoSurface->w * infoSurface->format->BytesPerPixel);
+        SDL_SavePNG(sdl_screenshot, filename);
+        SDL_FreeSurface(sdl_screenshot);
+        SDL_FreeSurface(infoSurface);
+        infoSurface = NULL;
+    }
+#endif
+    
+int main(int argc, char** argv) {
 
 #ifdef HAVE_SOCKET
 #define PORT 8888
@@ -1125,10 +1159,26 @@ void kins_inv(bot_t* bot) {
         sn.fd = spacenav_open();
 #endif
 
-        if (SDL_Init(SDL_INIT_VIDEO) < 0)   {
+#ifdef HAVE_JOYSTICK
+        SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+        if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) < 0)   {
+#else
+        if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO) < 0)   {
+#endif
             fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
             exit(EXIT_FAILURE);
         }
+
+#ifdef HAVE_JOYSTICK
+        if (SDL_NumJoysticks() < 1) {
+            printf( "Warning: No joysticks connected!\n" );
+        } else {
+            joy = SDL_JoystickOpen( 0 );
+            if (joy == NULL) {
+                 printf( "Warning: Unable to open game controller! SDL Error: %s\n", SDL_GetError() );
+            }
+        }
+#endif
 
         if (TTF_Init() < 0) {
             fprintf(stderr, "Unable to initialise SDL_ttf.\n");
@@ -1148,14 +1198,17 @@ void kins_inv(bot_t* bot) {
             exit(EXIT_FAILURE);
         }
 
+        /*
         if (sdl_flags & SDL_WINDOW_FULLSCREEN) {
             width  = sdl_displaymode.w;
             height = sdl_displaymode.h;
-        }
+            }*/
 
         sdl_window = SDL_CreateWindow("Mitsubishi RM-501 Movemaster II Robot Simulator",
                                       SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                       width, height, sdl_flags);
+
+        sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
 
         sdl_context = SDL_GL_CreateContext(sdl_window);
 
@@ -1318,7 +1371,37 @@ void kins_inv(bot_t* bot) {
                     break;
                 }
             }
-
+#ifdef HAVE_JOYSTICK
+            if (ev.type == SDL_JOYAXISMOTION) {
+                #define JOY_SCALE (1.0 / (32768.0 * 2.0))
+                if (ev.jaxis.which == 0) {
+                    // X axis motion
+                    if (ev.jaxis.axis == 0) {
+                        //Left of dead zone
+                        if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE) {
+                                move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
+                        }
+                        //Right of dead zone
+                        else if (ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
+                                move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
+                        }
+                    } // Y axis motion
+                    else if (ev.jaxis.axis == 1) {
+                        //Left of dead zone
+                        if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
+                                move_tool(&bot_inv, 2, (double)(-d * ev.jaxis.value * JOY_SCALE));
+                        }
+                    } // Z axis motion
+                    else if (ev.jaxis.axis == 3) {
+                        //Left of dead zone
+                        if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
+                                move_tool(&bot_inv, 1, (double)(-d * ev.jaxis.value * JOY_SCALE));
+                        }
+                    }
+                }
+            }
+#endif
+            
 #ifdef HAVE_SPACENAV
             if (sn.fd) {
                 spacenav_read(&sn);
@@ -1368,21 +1451,35 @@ void kins_inv(bot_t* bot) {
 
             display(&bot_fwd, &bot_inv);
 
+            SDL_RenderPresent(sdl_renderer);
+
+            // screenshot(0, 0, "screenshot.png");
+
 #ifdef ENABLE_FPS_LIMIT
             while (frames*1000.0/((float)(SDL_GetTicks()-ft+1))>(float)(DEFAULT_FPS)) {
                 SDL_Delay(10);
             }
             frames++;
 #endif
+
+            SDL_RenderClear(sdl_renderer);
         }
 
         if (sdl_font) {
             TTF_CloseFont(sdl_font);
         }
 
+#ifdef HAVE_JOYSTICK
+        if (joy) {
+            SDL_JoystickClose(joy);
+            joy = NULL;
+        }
+#endif
+
         TTF_Quit();
 
         SDL_GL_DeleteContext(sdl_context);
+        SDL_DestroyRenderer(sdl_renderer);
         SDL_DestroyWindow(sdl_window);
 
         SDL_Quit();
