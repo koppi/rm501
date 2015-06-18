@@ -17,6 +17,7 @@
 ## Compile and run
 
 Required libraries: OpenGL, SDL2, SDL2_ttf (-- not SDL_ttf2!)
+Optional libraries: ncurses, LinuxCNC/Machinekit HAL
 
 ```bash
 $ sudo apt-get -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-net-dev
