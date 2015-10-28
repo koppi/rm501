@@ -6,7 +6,7 @@
 Working features:
 
  * [OpenGL](https://www.opengl.org/) GUI,
- * control from keyboard, [JoyPad](https://www.google.com/?q=joypad) or [SpaceNavigator](https://www.google.com/?q=spacenavigator),
+ * control from keyboard, [Gamepad](https://www.google.com/?q=Gamepad) or [SpaceNavigator](https://www.google.com/?q=spacenavigator),
  * [forward](https://en.wikipedia.org/wiki/Forward_kinematics) and [inverse](https://en.wikipedia.org/wiki/Inverse_kinematics) kinematics ([double precision math](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)),
  * implemented in one [C](https://en.wikipedia.org/wiki/C_(programming_language)) file for simplicity and portability.
 
@@ -54,7 +54,7 @@ $ ./rm501
 * Control via SpaceNavigator
   * see ```HAVE_SPACENAV``` in source code.
   
-* Control via JoyPad
+* Control via Gamepad
   * see ```HAVE_JOYSTICK``` in source code.
   
 * Control via network:
