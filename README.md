@@ -42,6 +42,8 @@ $ make
 $ ./rm501
 ```
 
+– Tested on Ubuntu 15.10.
+
 ## Control
 
 * Control via keyboard:
