@@ -47,7 +47,7 @@ $ ./rm501
 * Control via keyboard:
   * Q, W, E, R, T – increase the joint values for waist, shoulder, elbow, pitch and roll,
   * A, S, D, F, G – decrease the joint values for waist, shoulder, elbow, pitch and roll,
-  * I, K, and direction keys (on your right-hand side): controlling the end-effector position.
+  * I, K, and direction keys (on your right-hand side): control the end-effector position.
   
 * Control via SpaceNavigator
   * see ```HAVE_SPACENAV``` in source code.
