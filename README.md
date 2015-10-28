@@ -13,7 +13,7 @@ Working features:
 Untested / unfinished features:
  
  * [ncurses](https://www.gnu.org/software/ncurses/) UI,
- * control from network ([inter-process communication](https://en.wikipedia.org/wiki/Inter-process_communication) via [UNIX socket](https://en.wikipedia.org/wiki/Unix_domain_socket)),
+ * control from network via [Internet socket](https://en.wikipedia.org/wiki/Internet_socket),
  * control from [LinuxCNC](http://www.linuxcnc.org/) or [Machinekit](http://www.machinekit.io/) via [HAL](http://linuxcnc.org/docs/html/hal/intro.html).
 
 ## Video
