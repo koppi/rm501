@@ -73,6 +73,32 @@ Unfinished (see ```HAVE_SOCKET``` in source code).
 
 Unfinished (see ```HAVE_HAL``` in source code).
 
+## Top 21 Companies in the Industrial Robotics Market (as of 2015)
+
+YouTube channels:
+
+* https://www.youtube.com/user/ABBRobotics
+* https://www.youtube.com/user/FANUCRoboticsInc
+* https://www.youtube.com/user/YaskawaEMECHA
+* https://www.youtube.com/user/AdeptRobots
+* https://www.youtube.com/user/ApexAutomationRobots
+* https://www.youtube.com/user/AurotekCorporation
+* https://www.youtube.com/user/axiumautomation
+* https://www.youtube.com/user/DENSORobotics
+* https://www.youtube.com/user/densoroboticseurope
+* https://www.youtube.com/user/ellisontechnologies
+* https://www.youtube.com/user/KawasakiRobots
+* https://www.youtube.com/user/KukaRobotGroup
+* https://www.youtube.com/user/MitsubishiElect
+* https://www.youtube.com/user/NachiRobotic
+* https://www.youtube.com/user/PARIAutomation
+* https://www.youtube.com/user/ReisRoboticsChannel
+* https://www.youtube.com/user/ROKAutomation
+* https://www.youtube.com/user/SchunkHQ
+* http://www.staubli.com/
+* https://www.youtube.com/user/TMRobotics1
+* https://www.youtube.com/user/YamahaRobotics
+
 ## Authors
 
 https://github.com/koppi
