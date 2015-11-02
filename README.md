@@ -73,9 +73,9 @@ Unfinished (see ```HAVE_SOCKET``` in source code).
 
 Unfinished (see ```HAVE_HAL``` in source code).
 
-## Top 21 Companies in the Industrial Robotics Market (as of 2015)
+## Top 21 Companies in the Industrial Robotics Market
 
-YouTube channels:
+YouTube channels (as of 2015):
 
 * https://www.youtube.com/user/ABBRobotics
 * https://www.youtube.com/user/FANUCRoboticsInc
