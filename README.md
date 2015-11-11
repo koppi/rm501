@@ -103,10 +103,12 @@ YouTube channels (as of 2015):
 
 * [Kraftwerk (1978)](https://www.youtube.com/watch?v=3HiRjblCypw)
 * [Jelle Bakker](https://www.youtube.com/watch?v=VKL4hhNmKLY) – [denha](https://www.youtube.com/watch?v=EPbEnRSS6ow)
+* [Drew Berry](https://www.youtube.com/watch?v=dMPXu6GF18M) – [Peter Hoffmann](https://www.youtube.com/watch?v=YdjERhTczAs)
 * [Simone Giertz](https://www.youtube.com/watch?v=E2evC2xTNWg) – [Les Baugh](https://www.youtube.com/watch?v=KPhkVPNKtVA)
 * [Hugh Herr](https://www.youtube.com/watch?v=CDsNZJTWw0w) – [Samuel Koch](https://www.youtube.com/watch?v=iMmN3TGKavo)
 * [Matthew Wilson](https://www.youtube.com/watch?v=Ko0Sd-FzrzI) – [Kevin Warwick](https://www.youtube.com/watch?v=IMf8d5fxNkY)
 * [Kraftwerk (2010)](https://www.youtube.com/watch?v=okhQtoQFG5s)
+
 
 ## Authors
 
