@@ -110,7 +110,7 @@ YouTube channels (as of 2015):
 * [Matthew Wilson](https://www.youtube.com/watch?v=Ko0Sd-FzrzI) – [Kevin Warwick](https://www.youtube.com/watch?v=IMf8d5fxNkY)
 * [Niklas Roy](https://www.youtube.com/watch?v=lNc2_MXIee4) – [Dr. Guero](https://www.youtube.com/watch?v=FxM40qBK02U)
 * [Ray Kurzweil](https://www.youtube.com/watch?v=q86jB4NN-Nc) – [Kraftwerk (2010)](https://www.youtube.com/watch?v=okhQtoQFG5s)
-
+* [2045: A New Era for Humanity](https://www.youtube.com/watch?v=01hbkh4hXEk) — [Noam Chomsky](https://www.youtube.com/watch?v=0kICLG4Zg8s)
 
 ## Authors
 
