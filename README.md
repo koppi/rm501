@@ -101,7 +101,7 @@ YouTube channels (as of 2015):
 
 ## Robotics Art
 
-* [Kraftwerk (1978)](https://www.youtube.com/watch?v=3HiRjblCypw)
+* [Leonardo Da Vinci](https://www.youtube.com/watch?v=opcpjufSNHM) – [Kraftwerk (1978)](https://www.youtube.com/watch?v=3HiRjblCypw)
 * [Jelle Bakker](https://www.youtube.com/watch?v=VKL4hhNmKLY) – [denha](https://www.youtube.com/watch?v=EPbEnRSS6ow)
 * [Drew Berry](https://www.youtube.com/watch?v=dMPXu6GF18M) – [Peter Hoffmann](https://www.youtube.com/watch?v=YdjERhTczAs)
 * [Simone Giertz](https://www.youtube.com/watch?v=E2evC2xTNWg) – [Les Baugh](https://www.youtube.com/watch?v=KPhkVPNKtVA)
