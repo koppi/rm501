@@ -95,7 +95,7 @@ YouTube channels (as of 2015):
 * https://www.youtube.com/user/ReisRoboticsChannel
 * https://www.youtube.com/user/ROKAutomation
 * https://www.youtube.com/user/SchunkHQ
-* http://www.staubli.com/
+* https://www.youtube.com/user/StaubliGroup
 * https://www.youtube.com/user/TMRobotics1
 * https://www.youtube.com/user/YamahaRobotics
 
