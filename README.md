@@ -18,7 +18,7 @@ Untested / unfinished features:
 
 ## Video
 
-[![Mitsubishi RM-501 Movemaster II Robot Simulator](http://img.youtube.com/vi/ddvIzk9aeJo/0.jpg)](https://www.youtube.com/watch?v=ddvIzk9aeJo)
+[Mitsubishi RM-501 Movemaster II Robot Simulator](doc/rm501.mkv)
 
 ## Compile and run
 
