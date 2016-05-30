@@ -81,7 +81,6 @@ TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
 SDL_Renderer *sdl_renderer;
-SDL_GLContext sdl_context;
 
 #ifdef HAVE_PNG
 SDL_Surface *png_shot;
@@ -987,7 +986,7 @@ int main(int argc, char** argv) {
 
         int sdlk_tab_pressed = 0;
 
-        int sdl_flags = SDL_WINDOW_OPENGL;
+        int sdl_flags = SDL_WINDOW_SHOWN;
         SDL_DisplayMode sdl_displaymode;
 
         int do_help = 0;
@@ -1200,10 +1199,8 @@ int main(int argc, char** argv) {
 
 #ifdef HAVE_JOYSTICK
         SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
-        if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) < 0)   {
-#else
-        if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO) < 0)   {
 #endif
+        if (SDL_Init(SDL_INIT_EVERYTHING) < 0)   {
             fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
             exit(EXIT_FAILURE);
         }
@@ -1249,9 +1246,7 @@ int main(int argc, char** argv) {
 
         sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
 
-        sdl_context = SDL_GL_CreateContext(sdl_window);
-
-        SDL_GL_MakeCurrent(sdl_window, sdl_context);
+        SDL_RenderClear(sdl_renderer);
 
         SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
         // SDL_GL_SetSwapInterval(1);
@@ -1527,7 +1522,6 @@ int main(int argc, char** argv) {
 
         TTF_Quit();
 
-        SDL_GL_DeleteContext(sdl_context);
         SDL_DestroyRenderer(sdl_renderer);
         SDL_DestroyWindow(sdl_window);
 
