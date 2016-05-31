@@ -51,27 +51,29 @@ $ ./rm501
   * A, S, D, F, G – decrease the joint values for waist, shoulder, elbow, pitch and roll,
   * I, K, and direction keys (on your right-hand side): control the end-effector position.
   
-* Control via SpaceNavigator
-  * see ```HAVE_SPACENAV``` in source code.
+* Control via SpaceNavigator:
   
-* Control via Gamepad
-  * see ```HAVE_JOYSTICK``` in source code.
+  see ```HAVE_SPACENAV``` in source code.
+  
+* Control via Gamepad:
+  
+  see ```HAVE_JOYSTICK``` in source code.
   
 * Control via network:
 
-```bash
-$ socat READLINE,history=$HOME/.rm501_history TCP:127.0.0.1:8888,crlf
-```
-or
-```bash
-$ nc localhost 8888 # if the above command does not work for you.
-```
+  ```bash
+  $ socat READLINE,history=$HOME/.rm501_history TCP:127.0.0.1:8888,crlf
+  ```
+  or
+  ```bash
+  $ nc localhost 8888 # if the above command does not work for you.
+  ```
 
-Unfinished (see ```HAVE_SOCKET``` in source code).
+  Unfinished (see ```HAVE_SOCKET``` in source code).
 
 * Control via LinuxCNC / Machinekit:
 
-Unfinished (see ```HAVE_HAL``` in source code).
+  Unfinished (see ```HAVE_HAL``` in source code).
 
 ## Top 21 Companies in the Industrial Robotics Market
 
