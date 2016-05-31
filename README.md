@@ -42,7 +42,7 @@ $ make
 $ ./rm501
 ```
 
-– Tested on Ubuntu 15.10.
+– Tested on Ubuntu 16.04.
 
 ## Control
 
