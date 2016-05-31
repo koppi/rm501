@@ -31,6 +31,12 @@
 #define ENABLE_FPS_LIMIT
 #define DEFAULT_FPS 50
 
+// see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
+#define PROJ2
+
+// see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj3/5463-Project-3-FA2015.pdf
+#define PROJ3
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <math.h>
@@ -98,11 +104,19 @@ typedef struct {
         double pos;
         double min;
         double max;
+#ifdef PROJ2
+        double tar;
+#endif
     } j[5]; // joints
 
     double t[16];  // tool matrix
     int  err;      // error a to joint number if inverse kinematics fails
     char msg[512]; // opt. message from inverse kinematics
+
+#ifdef PROJ3
+    int proj3counter;
+#endif
+
 } bot_t;
 
 #define rad2deg(rad) ((rad)*(180.0/M_PI))
@@ -1383,6 +1397,78 @@ int main(int argc, char** argv) {
                     rotate_tool(&bot_inv,  cnt, 0, 1, 0);
                 }
             }
+
+#ifdef PROJ2
+///////////////////////////////////////////////////////////////////////////////
+            if (keys[SDL_SCANCODE_H]) {
+                bot_fwd.j[0].tar= 30;
+                bot_fwd.j[1].tar= 0;
+                bot_fwd.j[2].tar= 0;
+                bot_fwd.j[3].tar= 90;
+                bot_fwd.j[4].tar= 0;
+            }
+
+            if (keys[SDL_SCANCODE_N]) {
+                bot_fwd.j[0].tar= -120;
+                bot_fwd.j[1].tar= 100;
+                bot_fwd.j[2].tar= -90;
+                bot_fwd.j[3].tar= 0;
+                bot_fwd.j[4].tar= 0;
+            }
+#ifdef PROJ3
+
+            // C: move in a circle
+            if (keys[SDL_SCANCODE_C]) {
+                bot_inv.proj3counter %= 360;
+                bot_inv.proj3counter++;
+                double theta = deg2rad(bot_inv.proj3counter);
+                bot_inv.t[12] = 2.8 + cos(theta) * 0.6;
+                bot_inv.t[13] = 2.4;
+                bot_inv.t[14] = sin(theta) * 0.6;
+
+                do_kins_inv = 1;
+            }
+
+            // V: reset circle counter
+            if (keys[SDL_SCANCODE_V]) {
+                bot_inv.proj3counter = 0;
+            }
+
+#endif
+            // H/N: move to home positions (try with the shift key to see the difference)
+            if (keys[SDL_SCANCODE_H] || keys[SDL_SCANCODE_N]) {
+                i = 1;
+                while (true) {
+                    if (bot_fwd.j[i].tar > bot_fwd.j[i].pos) {
+                        if (bot_fwd.j[i].tar - bot_fwd.j[i].pos < cnt) {
+                            bot_fwd.j[i].pos = bot_fwd.j[i].tar;
+                        } else {
+                            jog_joint(&bot_fwd, i, cnt); 
+                            if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
+                                break;
+                            }
+                        }
+                    }
+                    if (bot_fwd.j[i].tar < bot_fwd.j[i].pos) {
+                        if (bot_fwd.j[i].tar - bot_fwd.j[i].pos > -cnt) {
+                            bot_fwd.j[i].pos = bot_fwd.j[i].tar;
+                        } else {
+                            jog_joint(&bot_fwd, i, -cnt);
+                            if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
+                                break;
+                            }
+                        }
+                    }
+                    if (i >= 1 && i <= 3)
+                        i++;
+                    else if (i==4)
+                        i=0;
+                    else if (i==0)
+                        break;
+                }
+            }
+///////////////////////////////////////////////////////////////////////////////
+#endif
 
             if (ev.type == SDL_KEYDOWN) {
 
