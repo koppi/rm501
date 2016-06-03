@@ -22,14 +22,21 @@
 // sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
 // for joystick access: sudo usermod -aG input $USER
 
-//#define HAVE_HAL
-//#define HAVE_SERIAL
-#define HAVE_PNG
-#define HAVE_JOYSTICK
-#define HAVE_SPACENAV
-// #define HAVE_SOCKET
-#define ENABLE_FPS_LIMIT
-#define DEFAULT_FPS 50
+#define HAVE_SDL           // working
+#ifdef HAVE_SDL
+  #define HAVE_JOYSTICK    // working, requires HAVE_SDL
+  #define HAVE_PNG         // working, requires HAVE_SDL
+  #define ENABLE_FPS_LIMIT // working, requires HAVE_SDL
+  #ifdef ENABLE_FPS_LIMIT
+    #define DEFAULT_FPS 50
+  #endif
+#endif
+
+//#define HAVE_SPACENAV        // working
+//#define HAVE_HAL             // partially working
+//#define HAVE_NCURSES         // unfinished
+//#define HAVE_SERIAL          // unfinished
+//#define HAVE_SOCKET          // unfinished
 
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
 #define PROJ2
@@ -39,17 +46,24 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h> // EXIT_SUCCESS
+#include <string.h> // memcpy()
+#include <signal.h> // sigaction(), sigsuspend(), sig*()
 #include <math.h>
 
+#ifdef HAVE_SDL
 #include <GL/glu.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_opengl.h>
+#endif
 
+#ifdef HAVE_NCURSES
 #include <curses.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#endif
 
 #ifdef HAVE_SPACENAV
 #include <linux/input.h>
@@ -63,12 +77,17 @@
 #include <libserialport.h>
 #endif
 
+#ifdef HAVE_SDL
 #ifdef HAVE_PNG
 #include "savepng.h"
 #include "savepng.c"
 #endif
+#endif
+
+volatile int done    = 0; // SIGINT or user exit requested
 
 #ifdef HAVE_HAL
+int do_hal = 0;
 #include "hal.h"
 #define MODULE_NAME "rm501"
 char *modname = MODULE_NAME;
@@ -81,20 +100,32 @@ int    hal_comp_id;
 hal_t *hal_pos_data;
 #endif
 
+#ifdef HAVE_SDL
 int view_mode = 0;
 const int width = 1280, height = 700; // 720
 TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
 SDL_Renderer *sdl_renderer;
+#endif
 
+#ifdef HAVE_NCURSES
+WINDOW *menubar,*messagebar;
+#endif
+
+#ifdef HAVE_SDL
 #ifdef HAVE_PNG
 SDL_Surface *png_shot;
+#endif
 #endif
 
 #ifdef HAVE_JOYSTICK
 SDL_Joystick* joy = NULL;
 const int JOYSTICK_DEAD_ZONE = 2500;
+#endif
+
+#ifdef HAVE_SOCKET
+int do_net = 0;
 #endif
 
 typedef struct {
@@ -163,16 +194,6 @@ void rotate_m_axyz(double *mat, double angle, double x, double y, double z ) {
 
 }
 
-void cross(float th, float l) {
-    glLineWidth(th);
-    glBegin(GL_LINES);
-    glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(l, 0, 0);
-    glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, l, 0);
-    glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, l);
-    glEnd();
-    glLineWidth(1);
-}
-
 #define RPY_P_FUZZ (0.000001)
 
 int pmMatRpyConvert(double m[], double *r, double *p, double *y) {
@@ -219,17 +240,17 @@ void kins_fwd(bot_t *bot) {
     bot->t[0] =   C1*C5*C234 - S1*S5;
     bot->t[1] =   C5*S234;
     bot->t[2] = - S1*C5*C234 - C1*S5;
-	bot->t[3] = 0;
+    bot->t[3] = 0;
 
     bot->t[4] = -C1*S234;
     bot->t[5] =  C234;
     bot->t[6] =  S1*S234;
-	bot->t[7] = 0;
+    bot->t[7] = 0;
 
     bot->t[8]  = S1*C5 + C1*C234*S5;
     bot->t[9]  = S5*S234;
     bot->t[10] = C1*C5 - S1*C234*S5;
-	bot->t[11] = 0;
+    bot->t[11] = 0;
 
     bot->t[12] = px;
     bot->t[13] = pz;
@@ -318,6 +339,19 @@ void kins_inv(bot_t* bot) {
         snprintf(bot->msg, sizeof(bot->msg), "kin_inv(%d): %s %s %s %s %s", bot->err, msg[0], msg[1], msg[2], msg[3], msg[4]);
     }
 
+#ifdef HAVE_SDL
+void cross(float th, float l) {
+    glLineWidth(th);
+    glBegin(GL_LINES);
+    glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(l, 0, 0);
+    glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, l, 0);
+    glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, l);
+    glEnd();
+    glLineWidth(1);
+}
+#endif
+
+#ifdef HAVE_SDL
     void text(int x, int y, TTF_Font *font, const char * format, ...) {
         char buffer[256];
         va_list args;
@@ -773,6 +807,7 @@ void kins_inv(bot_t* bot) {
 
         SDL_GL_SwapWindow(sdl_window);
     }
+#endif
 
     int do_kins_fwd = 1;
     int do_kins_inv = 0;
@@ -889,7 +924,7 @@ void kins_inv(bot_t* bot) {
         if (!sock) {
             return -1;
         }
-
+	
         va_start (args, format);
         vsnprintf (buffer, 255, format, args);
 
@@ -901,9 +936,9 @@ void kins_inv(bot_t* bot) {
     }
 
     void sock_close(int sock) {
-        if (sock) {
-            close(sock);
-        }
+      if (sock) {
+	close(sock);
+      }
     }
 
 #include <arpa/inet.h>
@@ -912,66 +947,67 @@ void kins_inv(bot_t* bot) {
 #include <errno.h>
 
     typedef struct {
-        int opt;
-        int master_socket, addrlen, new_socket, client_socket[30], max_clients, activity, i, valread, sd;
-        int max_sd;
-        struct sockaddr_in address;
+      int opt;
+      int master_socket, addrlen, new_socket, client_socket[30], max_clients, activity, i, valread, sd;
+      int max_sd;
+      struct sockaddr_in address;
 
-        char buffer[1025];
-        fd_set readfds;
+      char buffer[1025];
+      fd_set readfds;
 
-        char *message;
+      char *message;
     } net_t;
 
     int net_init(net_t *net, int port) {
-        int i;
-
-        net->opt = 1; // allow multiple connections
-        net->max_clients = 30;
-        net->message = "ECHO Daemon v1.0 \r\n";
-
-        for (i = 0; i < net->max_clients; i++) {
-            net->client_socket[i] = 0;
+      int i;
+      
+      net->opt = 1; // allow multiple connections
+      net->max_clients = 30;
+      net->message = "ECHO Daemon v1.0 \r\n";
+      
+      for (i = 0; i < net->max_clients; i++) {
+	net->client_socket[i] = 0;
+      }
+      
+      if ((net->master_socket = socket(AF_INET , SOCK_STREAM , 0)) == 0) {
+	perror("socket failed");
+	return (EXIT_FAILURE);
         }
-
-        if ((net->master_socket = socket(AF_INET , SOCK_STREAM , 0)) == 0) {
-            perror("socket failed");
-            return (EXIT_FAILURE);
-        }
-
-        if (setsockopt(net->master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&net->opt, sizeof(net->opt)) < 0) {
-            perror("setsockopt");
-            return (EXIT_FAILURE);
-        }
-
-        net->address.sin_family = AF_INET;
-        net->address.sin_addr.s_addr = INADDR_ANY;
-        net->address.sin_port = htons(port);
-
-        if (bind(net->master_socket, (struct sockaddr *)&net->address, sizeof(net->address))<0) {
-            perror("bind failed");
-            return (EXIT_FAILURE);
-        }
-        printf("Listening on port %d \n", port);
-
-        if (listen(net->master_socket, 3) < 0) {
-            perror("listen");
-            return (EXIT_FAILURE);
-        }
-
-        net->addrlen = sizeof(net->address);
-
-        return EXIT_SUCCESS;
+      
+      if (setsockopt(net->master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&net->opt, sizeof(net->opt)) < 0) {
+	perror("setsockopt");
+	return (EXIT_FAILURE);
+      }
+      
+      net->address.sin_family = AF_INET;
+      net->address.sin_addr.s_addr = INADDR_ANY;
+      net->address.sin_port = htons(port);
+      
+      if (bind(net->master_socket, (struct sockaddr *)&net->address, sizeof(net->address))<0) {
+	perror("bind failed");
+	return (EXIT_FAILURE);
+      }
+      printf("Listening on port %d \n", port);
+      
+      if (listen(net->master_socket, 3) < 0) {
+	perror("listen");
+	return (EXIT_FAILURE);
+      }
+      
+      net->addrlen = sizeof(net->address);
+      
+      return EXIT_SUCCESS;
     }
-
+    
 #endif
 
+#ifdef HAVE_SDL
 #ifdef HAVE_PNG
     void screenshot(int x, int y, const char * filename) {
         unsigned char pixels[width * height * 6];
         SDL_Surface *infoSurface = SDL_GetWindowSurface(sdl_window);
         SDL_Surface *sdl_screenshot = SDL_CreateRGBSurfaceFrom(pixels, infoSurface->w, infoSurface->h, infoSurface->format->BitsPerPixel, infoSurface->w * infoSurface->format->BytesPerPixel, infoSurface->format->Rmask, infoSurface->format->Gmask, infoSurface->format->Bmask, infoSurface->format->Amask);
-
+	
         SDL_RenderReadPixels(sdl_renderer, &infoSurface->clip_rect, infoSurface->format->format, pixels, infoSurface->w * infoSurface->format->BytesPerPixel);
         SDL_SavePNG(sdl_screenshot, filename);
         SDL_FreeSurface(sdl_screenshot);
@@ -979,8 +1015,47 @@ void kins_inv(bot_t* bot) {
         infoSurface = NULL;
     }
 #endif
-    
+#endif
+
+void handle_signal(int signal) {
+  sigset_t pending;
+
+  // Find out which signal we're handling
+  switch (signal) {
+  case SIGHUP:
+    break;
+  case SIGUSR1:
+    break;
+  case SIGINT:
+    done = 1;
+  default:
+    return;
+  }
+
+  sigpending(&pending);
+  if (sigismember(&pending, SIGHUP)) {
+  }
+  if (sigismember(&pending, SIGUSR1)) {
+  }
+}
+
 int main(int argc, char** argv) {
+  struct sigaction sa;
+  sa.sa_handler = &handle_signal;
+  sa.sa_flags = SA_RESTART;
+  sigfillset(&sa.sa_mask);
+
+  if (sigaction(SIGHUP, &sa, NULL) == -1) {
+    perror("Error: cannot handle SIGHUP");
+  }
+
+  if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+    perror("Error: cannot handle SIGUSR1");
+  }
+
+  if (sigaction(SIGINT, &sa, NULL) == -1) {
+    perror("Error: cannot handle SIGINT");
+  }
 
 #ifdef HAVE_SOCKET
 #define PORT 8888
@@ -993,634 +1068,707 @@ int main(int argc, char** argv) {
 
         bot_t bot_fwd, bot_inv;
 
-        SDL_Event ev;
-        int done = 0;
+#ifdef HAVE_SDL
+        int do_sdl = 0;
 
+        SDL_Event ev;
         const Uint8 *keys = SDL_GetKeyboardState(0);
 
         int sdlk_tab_pressed = 0;
 
         int sdl_flags = SDL_WINDOW_SHOWN;
         SDL_DisplayMode sdl_displaymode;
+#endif
+	
+#ifdef HAVE_NCURSES
+        int do_curses = 0;
+#endif
 
         int do_help = 0;
-        int do_daemon = 0;
 
         int i = 0;
         while (++i < argc) {
 #define OPTION_SET(longopt,shortopt) (strcmp(argv[i], longopt)==0 || strcmp(argv[i], shortopt)==0)
 #define OPTION_VALUE ((i+1 < argc)?(argv[i+1]):(NULL))
 #define OPTION_VALUE_PROCESSED (i++)
-            if (OPTION_SET("--fullscreen", "-f")) {
-                sdl_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-            } else if (OPTION_SET("--daemon", "-d")) {
-                do_daemon = 1;
-            } else if (OPTION_SET("--help", "-h")) {
-                do_help = 1;
-            } else {
-                fprintf(stderr, "Unknown option: %s\n", argv[i]);
-                do_help = 1;
-            }
-
+	  if (OPTION_SET("--help", "-h")) {
+            do_help = 1;
+#ifdef HAVE_SDL
+	  } else if (OPTION_SET("--fullscreen", "-f")) {
+	    sdl_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+	  } else if (OPTION_SET("--sdl", "-s")) {
+                do_sdl = 1;
+#endif
+#ifdef HAVE_HAL
+	  } else if (OPTION_SET("--hal", "-l")) {
+	    do_hal = 1;
+#endif
+#ifdef HAVE_NCURSES
+	  } else if (OPTION_SET("--curses", "-c")) {
+	    do_curses = 1;
+#endif
+#ifdef HAVE_SOCKET
+	  } else if (OPTION_SET("--net", "-n")) {
+	    do_net = 1;
+#endif
+	  } else {
+	    fprintf(stderr, "Unknown option: %s\n", argv[i]);
+	    do_help = 1;
+	  }
         }
 
         if (do_help) {
             fprintf(stderr, "Usage: %s [OPTIONS]\n\n"
                     " Where [OPTIONS] are zero or more of the following:\n\n"
+#ifdef HAVE_SDL
+                    "    [-s|--sdl]                  SDL window mode\n"
                     "    [-f|--fullscreen]           Fullscreen mode\n"
-                    "    [-d|--daemon]               Server mode\n"
+#endif
+#ifdef HAVE_NCURSES
+                    "    [-c|--curses]               Curses text mode\n"
+#endif
+#ifdef HAVE_HAL
+                    "    [-l|--hal]                  HAL mode\n"
+#endif
+#ifdef HAVE_SOCKET
+                    "    [-n|--net]                  Network server mode\n"
+#endif
                     "    [-h|--help]                 Show help information\n\n"
                     , argv[0]);
             return EXIT_SUCCESS;
         }
 
 #ifdef HAVE_HAL
-        // initialize component
-        hal_comp_id = hal_init(modname);
-        if (hal_comp_id < 1) {
+	if (do_hal) {
+	  // initialize component
+	  hal_comp_id = hal_init(modname);
+	  if (hal_comp_id < 1) {
             fprintf(stderr, "%s: ERROR: hal_init failed\n", modname);
             goto fail0;
-        }
+	  }
 
-        // allocate hal memory
-        hal_pos_data = hal_malloc(sizeof(hal_t));
-        if (hal_pos_data == NULL) {
+	  // allocate hal memory
+	  hal_pos_data = hal_malloc(sizeof(hal_t));
+	  if (hal_pos_data == NULL) {
             fprintf(stderr, "%s: ERROR: unable to allocate HAL shared memory\n", modname);
             goto fail1;
-        }
-
-        // register pins
-        for (i = 0; i < 5; i++) {
-                if (hal_pin_float_newf(HAL_OUT, &(hal_pos_data->axis[i]), hal_comp_id, "%s.%d.pos-cmd", MODULE_NAME, i) != 0) {
-                fprintf(stderr, "%s: ERROR: unable to register hal pin %s.%d.pos-cmd\n", modname, MODULE_NAME, i);
-                goto fail1;
+	  }
+	  
+	  // register pins
+	  for (i = 0; i < 5; i++) {
+	    if (hal_pin_float_newf(HAL_OUT, &(hal_pos_data->axis[i]), hal_comp_id, "%s.%d.pos-cmd", MODULE_NAME, i) != 0) {
+	      fprintf(stderr, "%s: ERROR: unable to register hal pin %s.%d.pos-cmd\n", modname, MODULE_NAME, i);
+	      goto fail1;
             }
-        }
-        
+	  }
+	}
 #endif
-
-        if (do_daemon) {
-#ifdef HAVE_SOCKET
-            net_init(&net, 8888);
-#endif
-
-            initscr();
-            nonl();
-            cbreak();
-            noecho();
-            keypad(stdscr,1);
-            timeout(0); // getch non-blocking
-            if (has_colors()) {
-                start_color();
-                init_pair(1, COLOR_WHITE,COLOR_BLUE);
-                init_pair(2, COLOR_BLUE,COLOR_WHITE);
-                init_pair(3, COLOR_RED,COLOR_WHITE);
-            }
-            curs_set(0);
-
-            struct winsize w;
-            ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-
-            WINDOW *menubar,*messagebar;
-
-            menubar    = subwin(stdscr, 1, w.ws_col, 0, 0);
-            messagebar = subwin(stdscr, 1, w.ws_col-1, w.ws_row-1, 1);
-            wbkgd(menubar, COLOR_PAIR(2));
-            wbkgd(messagebar, COLOR_PAIR(2));
-
-            werase(menubar);
-            wrefresh(menubar);
-
-            werase(messagebar);
-            wrefresh(messagebar);
-
-            wprintw(menubar, "Mitsubishi RM-501 Movemaster II Robot Simulator");
-            wprintw(messagebar, "Status: DISCONNECTED, OFFLINE");
-
-            int key;
-
-            while (!done) {
-
-                key=getch();
-
-                if (key=='q') {
-                    done = 1;
-                }
-
-                for (i = 0; i < 5; i++) {
-                    move(2+i,1);
-                    printw("%d:", i);
-                }
-
-                move(8,1); printw("x:");
-                move(9,1); printw("y:");
-                move(10,1); printw("z:");
-
-                move(12,1); printw("a:");
-                move(13,1); printw("b:");
-                move(14,1); printw("c:");
-
-                touchwin(stdscr);
-                refresh();
 
 #ifdef HAVE_SOCKET
-                FD_ZERO(&net.readfds);
-                FD_SET(net.master_socket, &net.readfds);
-                net.max_sd = net.master_socket;
-
-                for ( i = 0 ; i < net.max_clients ; i++) {
-                    net.sd = net.client_socket[i];
-
-                    if (net.sd > 0) {
-                        FD_SET( net.sd , &net.readfds);
-                    }
-
-                    if (net.sd > net.max_sd) {
-                        net.max_sd = net.sd;
-                    }
-                }
-
-                struct timeval tv;
-                tv.tv_sec = 0;
-                tv.tv_usec = 0;
-
-                net.activity = select( net.max_sd + 1 , &net.readfds , NULL , NULL , &tv);
-
-                if ((net.activity < 0) && (errno!=EINTR)) {
-                    printf("select error");
-                }
-
-                if (FD_ISSET(net.master_socket, &net.readfds)) {
-                    if ((net.new_socket = accept(net.master_socket, (struct sockaddr *)&net.address, (socklen_t*)&net.addrlen))<0) {
-                        perror("accept");
-                        exit(EXIT_FAILURE);
-                    }
-
-                    printf("New connection , socket fd is %d , ip is : %s , port : %d \n",
-                           net.new_socket , inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
-
-                    //sock_printf(net.new_socket, "P %ld %ld %ld %ld %ld\n", net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
-
-                    for (i = 0; i < net.max_clients; i++) {
-                        if (net.client_socket[i] == 0) {
-                            net.client_socket[i] = net.new_socket;
-                            printf("Adding to list of sockets as %d\n" , i);
-
-                            break;
-                        }
-                    }
-                }
-
-                for (i = 0; i < net.max_clients; i++) {
-                    net.sd = net.client_socket[i];
-
-                    if (FD_ISSET( net.sd , &net.readfds)) {
-                        if ((net.valread = read( net.sd , net.buffer, 1024)) == 0) { // check disconnect
-                            getpeername(net.sd , (struct sockaddr*)&net.address , (socklen_t*)&net.addrlen);
-                            printf("Host disconnected , ip %s , port %d \n",
-                                   inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
-
-                            close(net.sd);
-                            net.client_socket[i] = 0;
-                        } else {
-                            net.buffer[net.valread] = '\0';
-                            send(net.sd , net.buffer , strlen(net.buffer) , 0 );
-                        }
-                    }
-                }
-
-                for (i = 0; i < net.max_clients; i++) {
-                    net.sd = net.client_socket[i];
-
-                    // sock_printf(net.sd, "P %ld %ld %ld %ld %ld\n",
-                    // net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
-                }
+	if (do_net) {
+	  net_init(&net, 8888);
+	}
 #endif
-            }
 
-            delwin(menubar);
-            delwin(messagebar);
-            endwin();
-
-            return EXIT_SUCCESS;
+#ifdef HAVE_NCURSES
+	if (do_curses) {
+	  initscr();
+	  nonl();
+	  cbreak();
+	  noecho();
+	  keypad(stdscr,1);
+	  timeout(0); // getch non-blocking
+	  if (has_colors()) {
+	    start_color();
+	    init_pair(1, COLOR_WHITE,COLOR_BLUE);
+	    init_pair(2, COLOR_BLUE,COLOR_WHITE);
+	    init_pair(3, COLOR_RED,COLOR_WHITE);
+	  }
+	  curs_set(0);
+	  
+	  struct winsize w;
+	  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+	  
+	  menubar    = subwin(stdscr, 1, w.ws_col, 0, 0);
+	  messagebar = subwin(stdscr, 1, w.ws_col-1, w.ws_row-1, 1);
+	  wbkgd(menubar, COLOR_PAIR(2));
+	  wbkgd(messagebar, COLOR_PAIR(2));
+	  
+	  werase(menubar);
+	  wrefresh(menubar);
+	  
+	  werase(messagebar);
+	  wrefresh(messagebar);
+	  
+	  wprintw(menubar, "Mitsubishi RM-501 Movemaster II Robot Simulator");
+	  wprintw(messagebar, "Status: DISCONNECTED, OFFLINE");
+	}
+#endif
+    
+#ifdef HAVE_SOCKET
+    if (do_net) {
+      FD_ZERO(&net.readfds);
+      FD_SET(net.master_socket, &net.readfds);
+      net.max_sd = net.master_socket;
+      
+      for ( i = 0 ; i < net.max_clients ; i++) {
+        net.sd = net.client_socket[i];
+      
+	if (net.sd > 0) {
+          FD_SET( net.sd , &net.readfds);
         }
+      
+      if (net.sd > net.max_sd) {
+        net.max_sd = net.sd;
+      }
+    }
+      
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+      
+    net.activity = select( net.max_sd + 1 , &net.readfds , NULL , NULL , &tv);
+
+    if ((net.activity < 0) && (errno!=EINTR)) {
+      printf("select error");
+    }
+      
+    if (FD_ISSET(net.master_socket, &net.readfds)) {
+      if ((net.new_socket = accept(net.master_socket,
+	  (struct sockaddr *)&net.address, (socklen_t*)&net.addrlen)) < 0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+      }
+      
+      printf("New connection , socket fd is %d , ip is : %s , port : %d \n",
+        net.new_socket , inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
+      
+      // sock_printf(net.new_socket, "P %ld %ld %ld %ld %ld\n", net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
+      
+      for (i = 0; i < net.max_clients; i++) {
+        if (net.client_socket[i] == 0) {
+          net.client_socket[i] = net.new_socket;
+          printf("Adding to list of sockets as %d\n" , i);
+      
+          break;
+        }
+      }
+    }
+      
+    for (i = 0; i < net.max_clients; i++) {
+      net.sd = net.client_socket[i];
+      
+      if (FD_ISSET( net.sd , &net.readfds)) {
+        if ((net.valread = read( net.sd , net.buffer, 1024)) == 0) { // check disconnect
+          getpeername(net.sd , (struct sockaddr*)&net.address , (socklen_t*)&net.addrlen);
+          printf("Host disconnected , ip %s , port %d \n",
+            inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
+      
+          close(net.sd);
+          net.client_socket[i] = 0;
+        } else {
+          net.buffer[net.valread] = '\0';
+          send(net.sd , net.buffer , strlen(net.buffer) , 0 );
+        }
+      }
+    }
+      
+    for (i = 0; i < net.max_clients; i++) {
+      net.sd = net.client_socket[i];
+      
+      // sock_printf(net.sd, "P %ld %ld %ld %ld %ld\n",
+      // net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
+    }
+  }
+#endif
 
 #ifdef HAVE_SPACENAV
-        spacenav_t sn = {0};
-
-        sn.fd = spacenav_open();
+    spacenav_t sn = {0};
+    
+    sn.fd = spacenav_open();
 #endif
+
+#ifdef HAVE_SDL
+    if (do_sdl) {
+#ifdef HAVE_JOYSTICK
+      SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+#endif
+      if (SDL_Init(SDL_INIT_EVERYTHING) < 0)   {
+	fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
+	exit(EXIT_FAILURE);
+      }
 
 #ifdef HAVE_JOYSTICK
-        SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
-#endif
-        if (SDL_Init(SDL_INIT_EVERYTHING) < 0)   {
-            fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
-            exit(EXIT_FAILURE);
-        }
-
-#ifdef HAVE_JOYSTICK
-        if (SDL_NumJoysticks() < 1) {
-            printf( "Warning: No joysticks connected!\n" );
-        } else {
-            joy = SDL_JoystickOpen( 0 );
-            if (joy == NULL) {
-                 printf( "Warning: Unable to open game controller! SDL Error: %s\n", SDL_GetError() );
-            }
-        }
+      if (SDL_NumJoysticks() < 1) {
+	printf( "Warning: No joysticks connected!\n" );
+      } else {
+	joy = SDL_JoystickOpen( 0 );
+	if (joy == NULL) {
+	  printf( "Warning: Unable to open game controller! SDL Error: %s\n", SDL_GetError() );
+	}
+      }
 #endif
 
-        if (TTF_Init() < 0) {
-            fprintf(stderr, "Unable to initialise SDL_ttf.\n");
-            exit(EXIT_FAILURE);
-        }
-
-        char* sdl_font_file = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSansMono.ttf";
-
-        sdl_font = TTF_OpenFont(sdl_font_file, 15);
-
-        if (!sdl_font) {
-            fprintf(stderr, "%s: %s\n", SDL_GetError(), sdl_font_file);
-        }
-
-        if (SDL_GetCurrentDisplayMode(0, &sdl_displaymode) != 0) {
-            fprintf(stderr, "Could not get display mode for video display #%d: %s", 0, SDL_GetError());
-            exit(EXIT_FAILURE);
-        }
-
-        /*
+      if (TTF_Init() < 0) {
+	fprintf(stderr, "Unable to initialise SDL_ttf.\n");
+	exit(EXIT_FAILURE);
+      }
+      
+      char* sdl_font_file = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSansMono.ttf";
+      
+      sdl_font = TTF_OpenFont(sdl_font_file, 15);
+      
+      if (!sdl_font) {
+	fprintf(stderr, "%s: %s\n", SDL_GetError(), sdl_font_file);
+      }
+      
+      if (SDL_GetCurrentDisplayMode(0, &sdl_displaymode) != 0) {
+	fprintf(stderr, "Could not get display mode for video display #%d: %s", 0, SDL_GetError());
+	exit(EXIT_FAILURE);
+      }
+      
+      /*
         if (sdl_flags & SDL_WINDOW_FULLSCREEN) {
-            width  = sdl_displaymode.w;
-            height = sdl_displaymode.h;
-            }*/
+  	  width  = sdl_displaymode.w;
+	  height = sdl_displaymode.h;
+	}*/
+      
+      sdl_window = SDL_CreateWindow("Mitsubishi RM-501 Movemaster II Robot Simulator",
+				    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+				    width, height, sdl_flags);
+      
+      sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+      
+      SDL_RenderClear(sdl_renderer);
+      
+      SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+      // SDL_GL_SetSwapInterval(1);
+      
+      {
+	GLfloat pos[4]   = {3., 5., 2., 1.};
+	GLfloat white[4] = {0.75, 0.75, 0.75, 1.};
+	GLfloat black[4] = {0., 0., 0., 0.};
+	
+	glDisable (GL_LIGHTING);
+	glEnable (GL_LIGHT1);
+	glLightfv (GL_LIGHT1, GL_POSITION, pos);
+	glLightfv (GL_LIGHT1, GL_DIFFUSE, white);
+	glLightfv (GL_LIGHT1, GL_SPECULAR, black);
+	
+	glEnable (GL_COLOR_MATERIAL);
+	glColorMaterial (GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+	glMaterialfv (GL_FRONT, GL_SPECULAR, black);
+      }
+      
+      glEnable(GL_TEXTURE_2D);
 
-        sdl_window = SDL_CreateWindow("Mitsubishi RM-501 Movemaster II Robot Simulator",
-                                      SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                      width, height, sdl_flags);
+      glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-        sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+      glEnable(GL_LINE_SMOOTH);
+      glHint(GL_LINE_SMOOTH_HINT,GL_NICEST);
 
-        SDL_RenderClear(sdl_renderer);
+      glEnable( GL_POLYGON_SMOOTH );
+      glHint( GL_POLYGON_SMOOTH_HINT, GL_NICEST );
 
-        SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-        // SDL_GL_SetSwapInterval(1);
+      glEnable(GL_BLEND);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        {
-            GLfloat pos[4]   = {3., 5., 2., 1.};
-            GLfloat white[4] = {0.75, 0.75, 0.75, 1.};
-            GLfloat black[4] = {0., 0., 0., 0.};
+      glDepthFunc(GL_LEQUAL);
+      glEnable(GL_DEPTH_TEST);
+      glShadeModel(GL_SMOOTH);
+      
+      glMatrixMode(GL_PROJECTION);
+      
+      glLoadIdentity();
+      gluPerspective(45, width / (height * 1.0), 0.1, 500);
+      
+      glMatrixMode(GL_MODELVIEW);
+#endif
+    }
 
-            glDisable (GL_LIGHTING);
-            glEnable (GL_LIGHT1);
-            glLightfv (GL_LIGHT1, GL_POSITION, pos);
-            glLightfv (GL_LIGHT1, GL_DIFFUSE, white);
-            glLightfv (GL_LIGHT1, GL_SPECULAR, black);
-
-            glEnable (GL_COLOR_MATERIAL);
-            glColorMaterial (GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
-            glMaterialfv (GL_FRONT, GL_SPECULAR, black);
-        }
-
-        glEnable(GL_TEXTURE_2D);
-
-        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-
-        glEnable(GL_LINE_SMOOTH);
-        glHint(GL_LINE_SMOOTH_HINT,GL_NICEST);
-
-        glEnable( GL_POLYGON_SMOOTH );
-        glHint( GL_POLYGON_SMOOTH_HINT, GL_NICEST );
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        glDepthFunc(GL_LEQUAL);
-        glEnable(GL_DEPTH_TEST);
-        glShadeModel(GL_SMOOTH);
-
-        glMatrixMode(GL_PROJECTION);
-
-        glLoadIdentity();
-        gluPerspective(45, width / (height * 1.0), 0.1, 500);
-
-        glMatrixMode(GL_MODELVIEW);
-
-        bot_fwd.d1 = 2.3;
-        bot_fwd.d5 = 1.3;
-        bot_fwd.a2 = 2.2;
-        bot_fwd.a3 = 1.6;
-
-        bot_fwd.j[0].min = -120;
-        bot_fwd.j[0].max = 180;
-
-        bot_fwd.j[1].min = -30;
-        bot_fwd.j[1].max = 100;
-
-        bot_fwd.j[2].min = -100;
-        bot_fwd.j[2].max = 0;
-
-        bot_fwd.j[3].min = -15;
-        bot_fwd.j[3].max = 195;
-
-        bot_fwd.j[4].min = -360;
-        bot_fwd.j[4].max = 360;
-
-        bot_fwd.j[0].pos = 0;
-        bot_fwd.j[1].pos = 90;
-        bot_fwd.j[2].pos = -90;
-        bot_fwd.j[3].pos = 0;
-        bot_fwd.j[4].pos = 0;
-
-        memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
-        kins_inv(&bot_inv);
-        kins_fwd(&bot_inv);
-        kins_fwd(&bot_fwd);
-
+    bot_fwd.d1 = 2.3;
+    bot_fwd.d5 = 1.3;
+    bot_fwd.a2 = 2.2;
+    bot_fwd.a3 = 1.6;
+    
+    bot_fwd.j[0].min = -120;
+    bot_fwd.j[0].max = 180;
+    
+    bot_fwd.j[1].min = -30;
+    bot_fwd.j[1].max = 100;
+    
+    bot_fwd.j[2].min = -100;
+    bot_fwd.j[2].max = 0;
+    
+    bot_fwd.j[3].min = -15;
+    bot_fwd.j[3].max = 195;
+    
+    bot_fwd.j[4].min = -360;
+    bot_fwd.j[4].max = 360;
+    
+    bot_fwd.j[0].pos = 0;
+    bot_fwd.j[1].pos = 90;
+    bot_fwd.j[2].pos = -90;
+    bot_fwd.j[3].pos = 0;
+    bot_fwd.j[4].pos = 0;
+    
+    memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
+    kins_inv(&bot_inv);
+    kins_fwd(&bot_inv);
+    kins_fwd(&bot_fwd);
+    
+#ifdef HAVE_SDL
+    if (do_sdl) {
 #ifdef ENABLE_FPS_LIMIT
-        frames = 0;
-        ft = SDL_GetTicks();
+      frames = 0;
+      ft = SDL_GetTicks();
+#endif
+    }
 #endif
 
 #ifdef HAVE_HAL
-        hal_ready(hal_comp_id);
+    if (do_hal) {
+      hal_ready(hal_comp_id);
+    }
 #endif
 
-        while (!done) {
-            SDL_PollEvent(&ev);
+    while (!done) {
+#ifdef HAVE_SDL
+  if (do_sdl) {
+    SDL_PollEvent(&ev);
+	  
+    if (ev.type == SDL_QUIT ||
+      (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE))
+      done = 1;
+    
+    if (ev.type == SDL_KEYUP && ev.key.keysym.sym == SDLK_TAB) {
+      sdlk_tab_pressed = 0;
+    }
 
-            if (ev.type == SDL_QUIT ||
-                (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE))
-                done = 1;
-
-            if (ev.type == SDL_KEYUP && ev.key.keysym.sym == SDLK_TAB) {
-                sdlk_tab_pressed = 0;
-            }
-
-            double d   = 0.05;
-            double cnt = 1.00;
-
-            if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL]) {
-                d   *= 2;
-                cnt *= 2;
-            }
-
-            if (keys[SDL_SCANCODE_Q]) { jog_joint(&bot_fwd, 0,  cnt); }
-            if (keys[SDL_SCANCODE_W]) { jog_joint(&bot_fwd, 1,  cnt); }
-            if (keys[SDL_SCANCODE_E]) { jog_joint(&bot_fwd, 2,  cnt); }
-            if (keys[SDL_SCANCODE_R]) { jog_joint(&bot_fwd, 3,  cnt); }
-            if (keys[SDL_SCANCODE_T]) { jog_joint(&bot_fwd, 4,  cnt); }
-
-            if (keys[SDL_SCANCODE_A]) { jog_joint(&bot_fwd, 0, -cnt); }
-            if (keys[SDL_SCANCODE_S]) { jog_joint(&bot_fwd, 1, -cnt); }
-            if (keys[SDL_SCANCODE_D]) { jog_joint(&bot_fwd, 2, -cnt); }
-            if (keys[SDL_SCANCODE_F]) { jog_joint(&bot_fwd, 3, -cnt); }
-            if (keys[SDL_SCANCODE_G]) { jog_joint(&bot_fwd, 4, -cnt); }
-
-            if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
-                if (keys[SDL_SCANCODE_LEFT])     { move_tool(&bot_inv, 0, -d); }
-                if (keys[SDL_SCANCODE_RIGHT])    { move_tool(&bot_inv, 0,  d); }
-                if (keys[SDL_SCANCODE_I])        { move_tool(&bot_inv, 1,  d); }
-                if (keys[SDL_SCANCODE_K])        { move_tool(&bot_inv, 1, -d); }
-                if (keys[SDL_SCANCODE_UP])       { move_tool(&bot_inv, 2,  d); }
-                if (keys[SDL_SCANCODE_DOWN])     { move_tool(&bot_inv, 2, -d); }
-            } else {
-                if (keys[SDL_SCANCODE_UP])  {
-                    rotate_tool(&bot_inv, -cnt, sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
-                }
-                if (keys[SDL_SCANCODE_DOWN]) {
-                    rotate_tool(&bot_inv,  cnt, sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
-                }
-                if (keys[SDL_SCANCODE_LEFT])  {
-                    rotate_tool(&bot_inv, -cnt, 0, 1, 0);
-                }
-                if (keys[SDL_SCANCODE_RIGHT]) {
-                    rotate_tool(&bot_inv,  cnt, 0, 1, 0);
-                }
-            }
-
+    double d   = 0.05;
+    double cnt = 1.00;
+	  
+    if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL]) {
+      d   *= 2;
+      cnt *= 2;
+    }
+    
+    if (keys[SDL_SCANCODE_Q]) { jog_joint(&bot_fwd, 0,  cnt); }
+    if (keys[SDL_SCANCODE_W]) { jog_joint(&bot_fwd, 1,  cnt); }
+    if (keys[SDL_SCANCODE_E]) { jog_joint(&bot_fwd, 2,  cnt); }
+    if (keys[SDL_SCANCODE_R]) { jog_joint(&bot_fwd, 3,  cnt); }
+    if (keys[SDL_SCANCODE_T]) { jog_joint(&bot_fwd, 4,  cnt); }
+    
+    if (keys[SDL_SCANCODE_A]) { jog_joint(&bot_fwd, 0, -cnt); }
+    if (keys[SDL_SCANCODE_S]) { jog_joint(&bot_fwd, 1, -cnt); }
+    if (keys[SDL_SCANCODE_D]) { jog_joint(&bot_fwd, 2, -cnt); }
+    if (keys[SDL_SCANCODE_F]) { jog_joint(&bot_fwd, 3, -cnt); }
+    if (keys[SDL_SCANCODE_G]) { jog_joint(&bot_fwd, 4, -cnt); }
+    
+    if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
+      if (keys[SDL_SCANCODE_LEFT])     { move_tool(&bot_inv, 0, -d); }
+      if (keys[SDL_SCANCODE_RIGHT])    { move_tool(&bot_inv, 0,  d); }
+      if (keys[SDL_SCANCODE_I])        { move_tool(&bot_inv, 1,  d); }
+      if (keys[SDL_SCANCODE_K])        { move_tool(&bot_inv, 1, -d); }
+      if (keys[SDL_SCANCODE_UP])       { move_tool(&bot_inv, 2,  d); }
+      if (keys[SDL_SCANCODE_DOWN])     { move_tool(&bot_inv, 2, -d); }
+    } else {
+      if (keys[SDL_SCANCODE_UP])  {
+        rotate_tool(&bot_inv, -cnt, sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
+      }
+      if (keys[SDL_SCANCODE_DOWN]) {
+        rotate_tool(&bot_inv,  cnt, sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
+      }
+      if (keys[SDL_SCANCODE_LEFT])  {
+        rotate_tool(&bot_inv, -cnt, 0, 1, 0);
+      }
+      if (keys[SDL_SCANCODE_RIGHT]) {
+        rotate_tool(&bot_inv,  cnt, 0, 1, 0);
+      }
+    }
+	  
 #ifdef PROJ2
 ///////////////////////////////////////////////////////////////////////////////
-            if (keys[SDL_SCANCODE_H]) {
-                bot_fwd.j[0].tar= 30;
-                bot_fwd.j[1].tar= 0;
-                bot_fwd.j[2].tar= 0;
-                bot_fwd.j[3].tar= 90;
-                bot_fwd.j[4].tar= 0;
-            }
-
-            if (keys[SDL_SCANCODE_N]) {
-                bot_fwd.j[0].tar= -120;
-                bot_fwd.j[1].tar= 100;
-                bot_fwd.j[2].tar= -90;
-                bot_fwd.j[3].tar= 0;
-                bot_fwd.j[4].tar= 0;
-            }
+    if (keys[SDL_SCANCODE_H]) {
+      bot_fwd.j[0].tar= 30;
+      bot_fwd.j[1].tar= 0;
+      bot_fwd.j[2].tar= 0;
+      bot_fwd.j[3].tar= 90;
+      bot_fwd.j[4].tar= 0;
+    }
+	  
+    if (keys[SDL_SCANCODE_N]) {
+      bot_fwd.j[0].tar= -120;
+      bot_fwd.j[1].tar= 100;
+      bot_fwd.j[2].tar= -90;
+      bot_fwd.j[3].tar= 0;
+      bot_fwd.j[4].tar= 0;
+    }
 #ifdef PROJ3
-
-            // C: move in a circle
-            if (keys[SDL_SCANCODE_C]) {
-                bot_inv.proj3counter %= 360;
-                bot_inv.proj3counter++;
-                double theta = deg2rad(bot_inv.proj3counter);
-                bot_inv.t[12] = 2.8 + cos(theta) * 0.6;
-                bot_inv.t[13] = 2.4;
-                bot_inv.t[14] = sin(theta) * 0.6;
-
-                do_kins_inv = 1;
-            }
-
-            // V: reset circle counter
-            if (keys[SDL_SCANCODE_V]) {
-                bot_inv.proj3counter = 0;
-            }
-
+    // C: move in a circle
+    if (keys[SDL_SCANCODE_C]) {
+      bot_inv.proj3counter %= 360;
+      bot_inv.proj3counter++;
+      double theta = deg2rad(bot_inv.proj3counter);
+      bot_inv.t[12] = 2.8 + cos(theta) * 0.6;
+      bot_inv.t[13] = 2.4;
+      bot_inv.t[14] = sin(theta) * 0.6;
+	    
+      do_kins_inv = 1;
+    }
+	  
+    // V: reset circle counter
+    if (keys[SDL_SCANCODE_V]) {
+      bot_inv.proj3counter = 0;
+    }
+	  
 #endif
-            // H/N: move to home positions (try with the shift key to see the difference)
-            if (keys[SDL_SCANCODE_H] || keys[SDL_SCANCODE_N]) {
-                i = 1;
-                while (true) {
-                    if (bot_fwd.j[i].tar > bot_fwd.j[i].pos) {
-                        if (bot_fwd.j[i].tar - bot_fwd.j[i].pos < cnt) {
-                            bot_fwd.j[i].pos = bot_fwd.j[i].tar;
-                        } else {
-                            jog_joint(&bot_fwd, i, cnt); 
-                            if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
-                                break;
-                            }
-                        }
-                    }
-                    if (bot_fwd.j[i].tar < bot_fwd.j[i].pos) {
-                        if (bot_fwd.j[i].tar - bot_fwd.j[i].pos > -cnt) {
-                            bot_fwd.j[i].pos = bot_fwd.j[i].tar;
-                        } else {
-                            jog_joint(&bot_fwd, i, -cnt);
-                            if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
-                                break;
-                            }
-                        }
-                    }
-                    if (i >= 1 && i <= 3)
-                        i++;
-                    else if (i==4)
-                        i=0;
-                    else if (i==0)
-                        break;
-                }
-            }
+    // H/N: move to home positions (try with the shift key to see the difference)
+    if (keys[SDL_SCANCODE_H] || keys[SDL_SCANCODE_N]) {
+      i = 1;
+      while (1) {
+        if (bot_fwd.j[i].tar > bot_fwd.j[i].pos) {
+    	  if (bot_fwd.j[i].tar - bot_fwd.j[i].pos < cnt) {
+	    bot_fwd.j[i].pos = bot_fwd.j[i].tar;
+          } else {
+            jog_joint(&bot_fwd, i, cnt); 
+            if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
+              break;
+	    }
+	  }
+        }
+        if (bot_fwd.j[i].tar < bot_fwd.j[i].pos) {
+          if (bot_fwd.j[i].tar - bot_fwd.j[i].pos > -cnt) {
+	    bot_fwd.j[i].pos = bot_fwd.j[i].tar;
+	  } else {
+	    jog_joint(&bot_fwd, i, -cnt);
+	    if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
+	      break;
+	  }
+	}
+      }
+      if (i >= 1 && i <= 3)
+        i++;
+      else if (i==4)
+        i=0;
+      else if (i==0)
+        break;
+      }
+    }
 ///////////////////////////////////////////////////////////////////////////////
 #endif
 
-            if (ev.type == SDL_KEYDOWN) {
-
-                switch( ev.key.keysym.sym ) {
-                case SDLK_TAB:
-                    if (!sdlk_tab_pressed) {
-                        if (view_mode == 0) {
-                            view_mode = 1;
-                        } else {
-                            view_mode = 0;
-                        }
-                        sdlk_tab_pressed = 1;
-                    }
-                    break;
-                case SDLK_F1:
-                    bot_fwd.j[0].pos = 0;
-                    bot_fwd.j[1].pos = 45;
-                    bot_fwd.j[2].pos = -45;
-                    bot_fwd.j[3].pos = 0;
-                    bot_fwd.j[4].pos = 0;
-                    do_kins_fwd = 1;
-                    break;
-                default:
-                    break;
-                }
-            }
+    if (ev.type == SDL_KEYDOWN) {
+	    
+      switch( ev.key.keysym.sym ) {
+      case SDLK_TAB:
+	if (!sdlk_tab_pressed) {
+	  if (view_mode == 0) {
+	    view_mode = 1;
+	  } else {
+	    view_mode = 0;
+	  }
+	  sdlk_tab_pressed = 1;
+	}
+	break;
+      case SDLK_F1:
+	bot_fwd.j[0].pos = 0;
+	bot_fwd.j[1].pos = 45;
+	bot_fwd.j[2].pos = -45;
+	bot_fwd.j[3].pos = 0;
+	bot_fwd.j[4].pos = 0;
+	do_kins_fwd = 1;
+	break;
+      default:
+	break;
+      }
+    }
 #ifdef HAVE_JOYSTICK
-            if (ev.type == SDL_JOYAXISMOTION) {
-                #define JOY_SCALE (1.0 / (32768.0 * 2.0))
-                if (ev.jaxis.which == 0) {
-                    // X axis motion
-                    if (ev.jaxis.axis == 0) {
-                        //Left of dead zone
-                        if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE) {
-                                move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
-                        }
-                        //Right of dead zone
-                        else if (ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
-                                move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
-                        }
-                    } // Y axis motion
-                    else if (ev.jaxis.axis == 1) {
-                        //Left of dead zone
-                        if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
-                                move_tool(&bot_inv, 2, (double)(-d * ev.jaxis.value * JOY_SCALE));
-                        }
-                    } // Z axis motion
-                    else if (ev.jaxis.axis == 3) {
-                        //Left of dead zone
-                        if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
-                                move_tool(&bot_inv, 1, (double)(-d * ev.jaxis.value * JOY_SCALE));
-                        }
-                    }
-                }
-            }
+    if (ev.type == SDL_JOYAXISMOTION) {
+      #define JOY_SCALE (1.0 / (32768.0 * 2.0))
+      if (ev.jaxis.which == 0) {
+	// X axis motion
+	if (ev.jaxis.axis == 0) {
+	  //Left of dead zone
+	  if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE) {
+	    move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
+	  }
+	  //Right of dead zone
+	  else if (ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
+	    move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
+	  }
+	} // Y axis motion
+	else if (ev.jaxis.axis == 1) {
+	  //Left of dead zone
+	  if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
+	    move_tool(&bot_inv, 2, (double)(-d * ev.jaxis.value * JOY_SCALE));
+	  }
+	} // Z axis motion
+	else if (ev.jaxis.axis == 3) {
+	  //Left of dead zone
+	  if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE) {
+	    move_tool(&bot_inv, 1, (double)(-d * ev.jaxis.value * JOY_SCALE));
+	  }
+	}
+      }
+    }
 #endif
-            
+  }
+#endif
+	  
 #ifdef HAVE_SPACENAV
-            if (sn.fd) {
-                spacenav_read(&sn);
-
+  if (sn.fd) {
+    spacenav_read(&sn);
+	    
 #define JOG_MIN 15
 #define JOG_SPEED 0.0001
 #define JOG_SPEED_ROT 0.008
-                if (abs(sn.pos[0]) > JOG_MIN) {
-                    move_tool(&bot_inv, 0, sn.pos[0] * JOG_SPEED);
-                }
-
-                if (abs(sn.pos[1]) > JOG_MIN) {
-                    move_tool(&bot_inv, 2, -sn.pos[1] * JOG_SPEED);
-                }
-
-                if (abs(sn.pos[2]) > JOG_MIN) {
-                    move_tool(&bot_inv, 1, -sn.pos[2] * JOG_SPEED);
-                }
-
-                if (abs(sn.pos[5]) > JOG_MIN) {
-                    rotate_tool(&bot_inv, -sn.pos[5] * JOG_SPEED_ROT, 0, 1, 0);
-                }
-
+    if (abs(sn.pos[0]) > JOG_MIN) {
+      move_tool(&bot_inv, 0, sn.pos[0] * JOG_SPEED);
+    }
+    
+    if (abs(sn.pos[1]) > JOG_MIN) {
+      move_tool(&bot_inv, 2, -sn.pos[1] * JOG_SPEED);
+    }
+	    
+    if (abs(sn.pos[2]) > JOG_MIN) {
+      move_tool(&bot_inv, 1, -sn.pos[2] * JOG_SPEED);
+    }
+    
+    if (abs(sn.pos[5]) > JOG_MIN) {
+      rotate_tool(&bot_inv, -sn.pos[5] * JOG_SPEED_ROT, 0, 1, 0);
+    }
+    
 #ifdef SPACENAV_JOG_A
-                if (abs(sn.pos[4]) > JOG_MIN) {
-                    rotate_tool(&bot_inv, -sn.pos[4] * JOG_SPEED_ROT,
-                                sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
-                }
+    if (abs(sn.pos[4]) > JOG_MIN) {
+      rotate_tool(&bot_inv, -sn.pos[4] * JOG_SPEED_ROT,
+		  sin(deg2rad(bot_inv.j[0].pos)), 0, cos(deg2rad(bot_inv.j[0].pos)));
+    }
 #endif
-                if (sn.key[0]) {
-                    done = 1;
-                }
-            }
+    if (sn.key[0]) {
+      done = 1;
+    }
+  }
 #endif
 
-            update_model(&bot_fwd, &bot_inv, do_kins_fwd, do_kins_inv);
+  update_model(&bot_fwd, &bot_inv, do_kins_fwd, do_kins_inv);
 
-            if (do_kins_inv || do_kins_fwd) {
-                memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
-                kins_inv(&bot_inv);
-                kins_fwd(&bot_inv);
-                kins_fwd(&bot_fwd);
-            }
+  if (do_kins_inv || do_kins_fwd) {
+    memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
+    kins_inv(&bot_inv);
+    kins_fwd(&bot_inv);
+    kins_fwd(&bot_fwd);
+  }
 
-            do_kins_fwd = 0;
-            do_kins_inv = 0;
+  do_kins_fwd = 0;
+  do_kins_inv = 0;
 
-            display(&bot_fwd, &bot_inv);
+#ifdef HAVE_SDL
+  if (do_sdl) {
+    display(&bot_fwd, &bot_inv);
+    SDL_RenderPresent(sdl_renderer);
+    // screenshot(0, 0, "screenshot.png");
+  }
+#endif
 
-            SDL_RenderPresent(sdl_renderer);
+#ifdef HAVE_NCURSES
+  if (do_curses) {
+    int key = getch();
+    
+    if (key=='q') {
+      done = 1;
+    }
+    
+    move(8,1);  printw("x: %7.2f", bot_inv.t[12]);
+    move(9,1);  printw("y: %7.2f", bot_inv.t[13]);
+    move(10,1); printw("z: %7.2f", bot_inv.t[14]);
+    
+    double r, p, y;
+    
+    pmMatRpyConvert(bot_inv.t, &r, &p, &y);
+	      
+    move(12,1); printw("a: %7.2f", rad2deg(r));
+    move(13,1); printw("b: %7.2f", rad2deg(p));
+    move(14,1); printw("c: %7.2f", rad2deg(y));
 
-            // screenshot(0, 0, "screenshot.png");
-
+    int i;
+    for (i = 0; i < 5; i++) {
+      move(18,1+i*11); printw("%7.2f", bot_inv.j[i].pos);
+    }
+	      
+    move(20,1);
+    if (strlen(bot_inv.msg)) {
+      printw(bot_inv.msg);
+    } else {
+      printw("                             ");
+    }
+	    
+    touchwin(stdscr);
+    refresh();
+  }
+#endif
+	    
 #ifdef HAVE_HAL
-            for (i = 0; i < 5; i++) {
-                *(hal_pos_data->axis[i]) = bot_fwd.j[i].pos;
-            }
+  if (do_hal) {
+    for (i = 0; i < 5; i++) {
+      *(hal_pos_data->axis[i]) = bot_fwd.j[i].pos;
+    }
+  }
 #endif
-            
+  
+#ifdef HAVE_SDL
+  if (do_sdl) {
 #ifdef ENABLE_FPS_LIMIT
-            while (frames*1000.0/((float)(SDL_GetTicks()-ft+1))>(float)(DEFAULT_FPS)) {
-                SDL_Delay(10);
-            }
-            frames++;
+    while (frames*1000.0/((float)(SDL_GetTicks()-ft+1))>(float)(DEFAULT_FPS)) {
+      SDL_Delay(10);
+    }
+    frames++;
 #endif
+  }
+#endif
+  } // while ! done
+    
+#ifdef HAVE_SDL
+  if (do_sdl) {
+    SDL_RenderClear(sdl_renderer);
 
-            SDL_RenderClear(sdl_renderer);
-        }
-
-        if (sdl_font) {
-            TTF_CloseFont(sdl_font);
-        }
+    if (sdl_font) {
+      TTF_CloseFont(sdl_font);
+    }
 
 #ifdef HAVE_JOYSTICK
-        if (joy) {
-            SDL_JoystickClose(joy);
-            joy = NULL;
-        }
+    if (joy) {
+      SDL_JoystickClose(joy);
+      joy = NULL;
+    }
 #endif
 
-        TTF_Quit();
-
-        SDL_DestroyRenderer(sdl_renderer);
-        SDL_DestroyWindow(sdl_window);
-
-        SDL_Quit();
-
+    TTF_Quit();
+	
+    SDL_DestroyRenderer(sdl_renderer);
+    SDL_DestroyWindow(sdl_window);
+    
+    SDL_Quit();
+  }
+#endif
+	
 #ifdef HAVE_SPACENAV
-        spacenav_close(&sn);
+  spacenav_close(&sn);
+#endif
+
+#ifdef HAVE_NCURSES
+  delwin(menubar);
+  delwin(messagebar);
+  endwin();
 #endif
 
 #ifdef HAVE_HAL
 fail1:
-        hal_exit(hal_comp_id);
+  if (do_hal) {
+    hal_exit(hal_comp_id);
+  }
 fail0:
 #endif
-        return EXIT_SUCCESS;
-    }
+  return EXIT_SUCCESS;
+}
+  
