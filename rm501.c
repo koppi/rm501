@@ -37,7 +37,7 @@
 #define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
 //#define HAVE_SOCKET          // unfinished
-#define HAVE_ZMQ             // unfinished
+//#define HAVE_ZMQ             // unfinished
 
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
 #define PROJ2
