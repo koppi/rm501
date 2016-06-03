@@ -76,6 +76,10 @@ $ ./rm501
 
   Unfinished (see ```HAVE_SOCKET``` in source code).
 
+* Control via ØMQ
+
+  Unfinished (see ```HAVE_ZMQ``` in source code).
+
 * Control via LinuxCNC / Machinekit:
 
   Unfinished (see ```HAVE_HAL``` in source code).

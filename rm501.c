@@ -32,11 +32,12 @@
   #endif
 #endif
 
-//#define HAVE_SPACENAV        // working
-//#define HAVE_HAL             // partially working
-//#define HAVE_NCURSES         // unfinished
+#define HAVE_SPACENAV        // working
+#define HAVE_HAL             // partially working
+#define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
 //#define HAVE_SOCKET          // unfinished
+#define HAVE_ZMQ             // unfinished
 
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
 #define PROJ2
@@ -50,6 +51,10 @@
 #include <string.h> // memcpy()
 #include <signal.h> // sigaction(), sigsuspend(), sig*()
 #include <math.h>
+
+#ifdef HAVE_ZMQ
+#include <zmq.h>
+#endif
 
 #ifdef HAVE_SDL
 #include <GL/glu.h>
@@ -126,6 +131,10 @@ const int JOYSTICK_DEAD_ZONE = 2500;
 
 #ifdef HAVE_SOCKET
 int do_net = 0;
+#endif
+
+#ifdef HAVE_ZMQ
+int do_zmq = 0;
 #endif
 
 typedef struct {
@@ -1111,6 +1120,10 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--net", "-n")) {
 	    do_net = 1;
 #endif
+#ifdef HAVE_ZMQ
+	  } else if (OPTION_SET("--zmq", "-z")) {
+	    do_zmq = 1;
+#endif
 	  } else {
 	    fprintf(stderr, "Unknown option: %s\n", argv[i]);
 	    do_help = 1;
@@ -1132,6 +1145,9 @@ int main(int argc, char** argv) {
 #endif
 #ifdef HAVE_SOCKET
                     "    [-n|--net]                  Network server mode\n"
+#endif
+#ifdef HAVE_ZMQ
+                    "    [-z|--zmq]                  ZMQ server mode\n"
 #endif
                     "    [-h|--help]                 Show help information\n\n"
                     , argv[0]);
@@ -1161,6 +1177,14 @@ int main(int argc, char** argv) {
 	      goto fail1;
             }
 	  }
+	}
+#endif
+
+#ifdef HAVE_ZMQ
+	if (do_zmq) {
+	  int major, minor, patch;
+	  zmq_version (&major, &minor, &patch);
+	  fprintf(stderr, "Using 0MQ version is %d.%d.%d\n", major, minor, patch);
 	}
 #endif
 
