@@ -22,7 +22,7 @@
 // sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
 // for joystick access: sudo usermod -aG input $USER
 
-#define HAVE_SDL           // working
+//#define HAVE_SDL           // working
 #ifdef HAVE_SDL
   #define HAVE_JOYSTICK    // working, requires HAVE_SDL
   #define HAVE_PNG         // working, requires HAVE_SDL
@@ -33,8 +33,8 @@
 #endif
 
 #define HAVE_SPACENAV        // working
-#define HAVE_HAL             // partially working
-#define HAVE_NCURSES         // unfinished
+//#define HAVE_HAL             // partially working
+//#define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
 //#define HAVE_SOCKET          // unfinished
 //#define HAVE_ZMQ             // unfinished
@@ -1094,6 +1094,7 @@ int main(int argc, char** argv) {
 #endif
 
         int do_help = 0;
+        int verbose = 0;
 
         int i = 0;
         while (++i < argc) {
@@ -1124,6 +1125,8 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--zmq", "-z")) {
 	    do_zmq = 1;
 #endif
+          } else if (OPTION_SET("--verbose", "-v")) {
+            verbose++;
 	  } else {
 	    fprintf(stderr, "Unknown option: %s\n", argv[i]);
 	    do_help = 1;
@@ -1134,22 +1137,23 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Usage: %s [OPTIONS]\n\n"
                     " Where [OPTIONS] are zero or more of the following:\n\n"
 #ifdef HAVE_SDL
-                    "    [-s|--sdl]                  SDL window mode\n"
-                    "    [-f|--fullscreen]           Fullscreen mode\n"
+                    "    [-s|--sdl]               SDL window mode\n"
+                    "    [-f|--fullscreen]        Fullscreen mode\n"
 #endif
 #ifdef HAVE_NCURSES
-                    "    [-c|--curses]               Curses text mode\n"
+                    "    [-c|--curses]            Curses text mode\n"
 #endif
 #ifdef HAVE_HAL
-                    "    [-l|--hal]                  HAL mode\n"
+                    "    [-l|--hal]               HAL mode\n"
 #endif
 #ifdef HAVE_SOCKET
-                    "    [-n|--net]                  Network server mode\n"
+                    "    [-n|--net]               Network server mode\n"
 #endif
 #ifdef HAVE_ZMQ
-                    "    [-z|--zmq]                  ZMQ server mode\n"
+                    "    [-z|--zmq]               ZMQ server mode\n"
 #endif
-                    "    [-h|--help]                 Show help information\n\n"
+                    "    [-v|--verbose]           Show verbose information\n\n"
+                    "    [-h|--help]              Show help information\n\n"
                     , argv[0]);
             return EXIT_SUCCESS;
         }
@@ -1181,10 +1185,10 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef HAVE_ZMQ
-	if (do_zmq) {
+	if (do_zmq && verbose >= 1) {
 	  int major, minor, patch;
 	  zmq_version (&major, &minor, &patch);
-	  fprintf(stderr, "Using 0MQ version is %d.%d.%d\n", major, minor, patch);
+	  fprintf(stderr, "Using 0MQ version %d.%d.%d\n", major, minor, patch);
 	}
 #endif
 
@@ -1314,6 +1318,16 @@ int main(int argc, char** argv) {
 
 #ifdef HAVE_SDL
     if (do_sdl) {
+
+      if (verbose >= 1) {
+        SDL_version linked;
+        SDL_GetVersion(&linked);
+        SDL_version compiled;
+        SDL_VERSION(&compiled);
+        fprintf(stderr, "Compiled  with SDL version %d.%d.%d.\n", compiled.major, compiled.minor, compiled.patch);
+        fprintf(stderr, "Linked against SDL version %d.%d.%d.\n", linked.major, linked.minor, linked.patch);
+      }
+
 #ifdef HAVE_JOYSTICK
       SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #endif
