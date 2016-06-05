@@ -34,4 +34,4 @@ pull:
 	git pull origin master --rebase
 
 push:
-	git push origin master
+	git push origin HEAD:master
