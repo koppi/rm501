@@ -3,7 +3,7 @@ Section: graphics
 Priority: optional
 Maintainer: Jakob Flierl <jakob.flierl@gmail.com>
 Uploaders: Jakob Flierl <jakob.flierl@gmail.com>
-Build-Depends: debhelper (>= 7.0.50~), pkgconf, automake, libtool, make, gcc, lsb-release, libsdl2-dev, libsdl2-image-dev, libsdl2-ttf-dev, libglu1-mesa-dev
+Build-Depends: debhelper (>= 7.0.50~), pkgconf, automake, libtool, make, gcc, lsb-release, libsdl2-dev, libsdl2-image-dev, libsdl2-ttf-dev, libglu1-mesa-dev, libpng12-dev
 Standards-Version: 3.9.7
 Homepage: https://github.com/koppi/rm501
 Vcs-Git: git://github.com/koppi/rm501.git
