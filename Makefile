@@ -29,3 +29,6 @@ rm501: rm501.o
 
 clean:
 	rm -f *.o rm501
+
+pull:
+	git pull --rebase
