@@ -1,0 +1,21 @@
+Source: rm501
+Section: graphics
+Priority: optional
+Maintainer: Jakob Flierl <jakob.flierl@gmail.com>
+Uploaders: Jakob Flierl <jakob.flierl@gmail.com>
+Build-Depends: debhelper (>= 7.0.50~), pkgconf, automake, libtool, make, gcc, lsb-release
+Standards-Version: 3.9.7
+Homepage: https://github.com/koppi/rm501
+Vcs-Git: git://github.com/koppi/rm501.git
+Vcs-Browser: https://github.com/koppi/rm501
+
+Package: rm501
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Mitsubishi RM-501 Movemaster II robot simulator
+ An app that simulates the Mitsubishi RM-501 Movemaster II robot.
+   * SDL2 OpenGL GUI, Curses GUI,
+   * control from computer keyboard, Gamepad or 3D mouse,
+   * forward and inverse kinematics (double precision math),
+   * implemented in one C file for simplicity and portability.
+

@@ -32,14 +32,17 @@ rm501: rm501.o
 
 install: rm501
 	strip rm501
-	install -m 0755 rm501         $(PREFIX)/bin
-	install -m 0755 rm501.png     $(PREFIX)/share/icons/hicolor/512x512/apps
-	install -m 0755 rm501.desktop $(PREFIX)/share/applications
+	mkdir -p $(INSTALL_PREFIX)$(PREFIX)/bin
+	install -m 0755 rm501         $(INSTALL_PREFIX)$(PREFIX)/bin
+	mkdir -p $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps
+	install -m 0664 rm501.png     $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps
+	mkdir -p $(INSTALL_PREFIX)$(PREFIX)/share/applications
+	install -m 0664 rm501.desktop $(INSTALL_PREFIX)$(PREFIX)/share/applications
 
 uninstall:
-	rm $(PREFIX)/bin/rm501
-	rm $(PREFIX)/share/icons/hicolor/512x512/apps/rm501.png
-	rm $(PREFIX)/share/applications/rm501.desktop
+	rm $(INSTALL_PREFIX)$(PREFIX)/bin/rm501
+	rm $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps/rm501.png
+	rm $(INSTALL_PREFIX)$(PREFIX)/share/applications/rm501.desktop
 
 clean:
 	rm -f *.o rm501
