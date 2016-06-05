@@ -52,3 +52,6 @@ pull:
 
 push:
 	git push origin HEAD:master
+
+test:
+	TRAVIS_DEBIAN_DISTRIBUTION=sid; wget -O- http://travis.debian.net/script.sh | sh -
