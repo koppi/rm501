@@ -12,15 +12,7 @@ node {
   def flavor = flavor(env.BRANCH_NAME)
   echo "Building flavor ${flavor}"
 
-  def os = [:]
-  os["sid"] = {
-    sh "export TRAVIS_DEBIAN_DISTRIBUTION=stable; wget -O- http://travis.debian.net/script.sh | sh -"
-  }
-  os["jessie"] = {
-    sh "export TRAVIS_DEBIAN_DISTRIBUTION=sid; wget -O- http://travis.debian.net/script.sh | sh -"
-  }
-
-  parallel os
+  sh "export TRAVIS_DEBIAN_DISTRIBUTION=sid; wget -O- http://travis.debian.net/script.sh | sh -"
 
   stage 'Stage Archive'
   // tell Jenkins to archive the debs
