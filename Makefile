@@ -31,4 +31,4 @@ clean:
 	rm -f *.o rm501
 
 pull:
-	git pull --rebase
+	git pull origin master --rebase
