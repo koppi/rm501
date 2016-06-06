@@ -19,8 +19,8 @@ CURSES_LDLIBS := -lcurses
 #ZMQ_LDLIBS := -l:libzmq.so.3
 
 # comment out to disable Mosquitto functionality
-#MOSQ_CFLAGS := -DHAVE_MOSQUITTO
-#MOSQ_LDLIBS := -lmosquitto
+MOSQ_CFLAGS := -DHAVE_MOSQUITTO
+MOSQ_LDLIBS := -lmosquitto
 
 CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MOSQ_CFLAGS) -O2 -g -Wall
 LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MOSQ_LDLIBS) -lm
