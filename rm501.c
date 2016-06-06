@@ -37,6 +37,7 @@
 //#define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
 //#define HAVE_SOCKET          // unfinished
+//#define HAVE_MOSQUITTO       // unfinished
 //#define HAVE_ZMQ             // unfinished
 
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
@@ -54,6 +55,10 @@
 
 #ifdef HAVE_ZMQ
 #include <zmq.h>
+#endif
+
+#ifdef HAVE_MOSQUITTO
+#include <mosquitto.h>
 #endif
 
 #ifdef HAVE_SDL
@@ -135,6 +140,11 @@ int do_net = 0;
 
 #ifdef HAVE_ZMQ
 int do_zmq = 0;
+#endif
+
+#ifdef HAVE_MOSQUITTO
+int do_mosquitto = 0;
+struct mosquitto *mosq;
 #endif
 
 typedef struct {
@@ -924,6 +934,12 @@ void cross(float th, float l) {
         }
     }
 
+#ifdef HAVE_MOSQUITTO
+void on_mosquitto_publish(struct mosquitto *mosq, void *userdata, int mid) {
+    // fprintf(stderr, "on_mosquitto_publish()");
+}
+#endif
+
 #ifdef HAVE_SOCKET
 
     int sock_printf(int sock, const char * format, ...) {
@@ -1072,7 +1088,7 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef ENABLE_FPS_LIMIT
-        unsigned int ft, frames;
+        unsigned int ft = 0, frames;
 #endif
 
         bot_t bot_fwd, bot_inv;
@@ -1125,6 +1141,10 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--zmq", "-z")) {
 	    do_zmq = 1;
 #endif
+#ifdef HAVE_MOSQUITTO
+          } else if (OPTION_SET("--mqtt", "-m")) {
+            do_mosquitto = 1;
+#endif
           } else if (OPTION_SET("--verbose", "-v")) {
             verbose++;
 	  } else {
@@ -1151,6 +1171,9 @@ int main(int argc, char** argv) {
 #endif
 #ifdef HAVE_ZMQ
                     "    [-z|--zmq]               ZMQ server mode\n"
+#endif
+#ifdef HAVE_MOSQUITTO
+                    "    [-m|--mqtt]              MQTT client mode\n"
 #endif
                     "    [-v|--verbose]           Show verbose information\n\n"
                     "    [-h|--help]              Show help information\n\n"
@@ -1190,6 +1213,24 @@ int main(int argc, char** argv) {
 	  zmq_version (&major, &minor, &patch);
 	  fprintf(stderr, "Using 0MQ version %d.%d.%d\n", major, minor, patch);
 	}
+#endif
+
+#ifdef HAVE_MOSQUITTO
+        if (do_mosquitto) {
+
+          mosquitto_lib_init();
+
+          if (verbose >= 1) {
+            int major, minor, revision;
+            mosquitto_lib_version(&major, &minor, &revision);
+            fprintf(stderr, "Using Mosquitto version %d.%d.%d\n", major, minor, revision);
+          }
+
+          mosq = mosquitto_new("rm501", true, NULL);
+          mosquitto_publish_callback_set(mosq, on_mosquitto_publish);
+          int keepalive = 60;
+          mosquitto_connect(mosq, "localhost", 1883, keepalive);
+        }
 #endif
 
 #ifdef HAVE_SOCKET
@@ -1753,6 +1794,19 @@ int main(int argc, char** argv) {
     }
   }
 #endif
+
+#ifdef HAVE_MOSQUITTO
+  char topic[32];
+  char payload[64];
+
+  if (do_mosquitto) {
+    for (i = 0; i < 5; i++) {
+      snprintf(topic,   sizeof topic,   "%s.%d", "rm501", i);
+      snprintf(payload, sizeof payload, "%f", bot_fwd.j[i].pos);
+      mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
+    }
+  }
+#endif
   
 #ifdef HAVE_SDL
   if (do_sdl) {
@@ -1807,6 +1861,14 @@ fail1:
   }
 fail0:
 #endif
+
+#ifdef HAVE_MOSQUITTO
+  if (do_mosquitto) {
+    mosquitto_disconnect(mosq);
+    mosquitto_destroy(mosq);
+    mosquitto_lib_cleanup();
+  }
+#endif
+
   return EXIT_SUCCESS;
 }
-  

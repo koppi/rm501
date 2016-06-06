@@ -80,6 +80,10 @@ $ ./rm501
 
   Unfinished (see ```HAVE_ZMQ``` in source code).
 
+* MQ Telemetry Transport via Mosquitto.
+
+  Partially working (see ```HAVE_MOSQUITTO``` in source code).
+
 * Control via LinuxCNC / Machinekit:
 
   Unfinished (see ```HAVE_HAL``` in source code).

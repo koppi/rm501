@@ -18,8 +18,12 @@ CURSES_LDLIBS := -lcurses
 #ZMQ_CFLAGS := -DHAVE_ZMQ
 #ZMQ_LDLIBS := -l:libzmq.so.3
 
-CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) -O2 -g -Wall
-LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) -lm
+# comment out to disable Mosquitto functionality
+#MOSQ_CFLAGS := -DHAVE_MOSQUITTO
+#MOSQ_LDLIBS := -lmosquitto
+
+CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MOSQ_CFLAGS) -O2 -g -Wall
+LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MOSQ_LDLIBS) -lm
 LDFLAGS += -Wl,--as-needed
 
 all: rm501
