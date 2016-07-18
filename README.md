@@ -119,6 +119,7 @@ YouTube channels (as of 2015):
 * [Mike Lewis](https://www.youtube.com/watch?v=aRcXULN6mp4) – [Toy Robot](http://www.ignorancia.org/en/index.php?page=toy-robot)
 * [Ray Kurzweil](https://www.youtube.com/watch?v=q86jB4NN-Nc) – [Kraftwerk (2010)](https://www.youtube.com/watch?v=okhQtoQFG5s)
 * [2045: A New Era for Humanity](https://www.youtube.com/watch?v=01hbkh4hXEk) — [Noam Chomsky](https://www.youtube.com/watch?v=0kICLG4Zg8s)
+* [Gary Marcus](https://www.youtube.com/watch?v=xY-eUd0XuOs) – [Alan Winfield](https://www.youtube.com/watch?v=-e2MrWYRUF8)
 
 ![hierarchy of robot neeeds](doc/maslow4.jpg)
 
