@@ -22,7 +22,7 @@
 // sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
 // for joystick access: sudo usermod -aG input $USER
 
-#define HAVE_SDL           // working
+//#define HAVE_SDL           // working
 #ifdef HAVE_SDL
   #define HAVE_JOYSTICK    // working, requires HAVE_SDL
   #define HAVE_PNG         // working, requires HAVE_SDL
@@ -32,11 +32,13 @@
   #endif
 #endif
 
-//#define HAVE_SPACENAV        // working
+#define HAVE_SPACENAV        // working
 //#define HAVE_HAL             // partially working
 //#define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
 //#define HAVE_SOCKET          // unfinished
+//#define HAVE_MOSQUITTO       // unfinished
+//#define HAVE_ZMQ             // unfinished
 
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
 #define PROJ2
@@ -50,6 +52,14 @@
 #include <string.h> // memcpy()
 #include <signal.h> // sigaction(), sigsuspend(), sig*()
 #include <math.h>
+
+#ifdef HAVE_ZMQ
+#include <zmq.h>
+#endif
+
+#ifdef HAVE_MOSQUITTO
+#include <mosquitto.h>
+#endif
 
 #ifdef HAVE_SDL
 #include <GL/glu.h>
@@ -126,6 +136,15 @@ const int JOYSTICK_DEAD_ZONE = 2500;
 
 #ifdef HAVE_SOCKET
 int do_net = 0;
+#endif
+
+#ifdef HAVE_ZMQ
+int do_zmq = 0;
+#endif
+
+#ifdef HAVE_MOSQUITTO
+int do_mosquitto = 0;
+struct mosquitto *mosq;
 #endif
 
 typedef struct {
@@ -915,6 +934,12 @@ void cross(float th, float l) {
         }
     }
 
+#ifdef HAVE_MOSQUITTO
+void on_mosquitto_publish(struct mosquitto *mosq, void *userdata, int mid) {
+    // fprintf(stderr, "on_mosquitto_publish()");
+}
+#endif
+
 #ifdef HAVE_SOCKET
 
     int sock_printf(int sock, const char * format, ...) {
@@ -1063,7 +1088,7 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef ENABLE_FPS_LIMIT
-        unsigned int ft, frames;
+        unsigned int ft = 0, frames;
 #endif
 
         bot_t bot_fwd, bot_inv;
@@ -1085,6 +1110,7 @@ int main(int argc, char** argv) {
 #endif
 
         int do_help = 0;
+        int verbose = 0;
 
         int i = 0;
         while (++i < argc) {
@@ -1111,6 +1137,16 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--net", "-n")) {
 	    do_net = 1;
 #endif
+#ifdef HAVE_ZMQ
+	  } else if (OPTION_SET("--zmq", "-z")) {
+	    do_zmq = 1;
+#endif
+#ifdef HAVE_MOSQUITTO
+          } else if (OPTION_SET("--mqtt", "-m")) {
+            do_mosquitto = 1;
+#endif
+          } else if (OPTION_SET("--verbose", "-v")) {
+            verbose++;
 	  } else {
 	    fprintf(stderr, "Unknown option: %s\n", argv[i]);
 	    do_help = 1;
@@ -1121,19 +1157,26 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Usage: %s [OPTIONS]\n\n"
                     " Where [OPTIONS] are zero or more of the following:\n\n"
 #ifdef HAVE_SDL
-                    "    [-s|--sdl]                  SDL window mode\n"
-                    "    [-f|--fullscreen]           Fullscreen mode\n"
+                    "    [-s|--sdl]               SDL window mode\n"
+                    "    [-f|--fullscreen]        Fullscreen mode\n"
 #endif
 #ifdef HAVE_NCURSES
-                    "    [-c|--curses]               Curses text mode\n"
+                    "    [-c|--curses]            Curses text mode\n"
 #endif
 #ifdef HAVE_HAL
-                    "    [-l|--hal]                  HAL mode\n"
+                    "    [-l|--hal]               HAL mode\n"
 #endif
 #ifdef HAVE_SOCKET
-                    "    [-n|--net]                  Network server mode\n"
+                    "    [-n|--net]               Network server mode\n"
 #endif
-                    "    [-h|--help]                 Show help information\n\n"
+#ifdef HAVE_ZMQ
+                    "    [-z|--zmq]               ZMQ server mode\n"
+#endif
+#ifdef HAVE_MOSQUITTO
+                    "    [-m|--mqtt]              MQTT client mode\n"
+#endif
+                    "    [-v|--verbose]           Show verbose information\n\n"
+                    "    [-h|--help]              Show help information\n\n"
                     , argv[0]);
             return EXIT_SUCCESS;
         }
@@ -1162,6 +1205,32 @@ int main(int argc, char** argv) {
             }
 	  }
 	}
+#endif
+
+#ifdef HAVE_ZMQ
+	if (do_zmq && verbose >= 1) {
+	  int major, minor, patch;
+	  zmq_version (&major, &minor, &patch);
+	  fprintf(stderr, "Using 0MQ version %d.%d.%d\n", major, minor, patch);
+	}
+#endif
+
+#ifdef HAVE_MOSQUITTO
+        if (do_mosquitto) {
+
+          mosquitto_lib_init();
+
+          if (verbose >= 1) {
+            int major, minor, revision;
+            mosquitto_lib_version(&major, &minor, &revision);
+            fprintf(stderr, "Using Mosquitto version %d.%d.%d\n", major, minor, revision);
+          }
+
+          mosq = mosquitto_new("rm501", true, NULL);
+          mosquitto_publish_callback_set(mosq, on_mosquitto_publish);
+          int keepalive = 60;
+          mosquitto_connect(mosq, "localhost", 1883, keepalive);
+        }
 #endif
 
 #ifdef HAVE_SOCKET
@@ -1290,6 +1359,16 @@ int main(int argc, char** argv) {
 
 #ifdef HAVE_SDL
     if (do_sdl) {
+
+      if (verbose >= 1) {
+        SDL_version linked;
+        SDL_GetVersion(&linked);
+        SDL_version compiled;
+        SDL_VERSION(&compiled);
+        fprintf(stderr, "Compiled  with SDL version %d.%d.%d.\n", compiled.major, compiled.minor, compiled.patch);
+        fprintf(stderr, "Linked against SDL version %d.%d.%d.\n", linked.major, linked.minor, linked.patch);
+      }
+
 #ifdef HAVE_JOYSTICK
       SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #endif
@@ -1715,6 +1794,19 @@ int main(int argc, char** argv) {
     }
   }
 #endif
+
+#ifdef HAVE_MOSQUITTO
+  char topic[32];
+  char payload[64];
+
+  if (do_mosquitto) {
+    for (i = 0; i < 5; i++) {
+      snprintf(topic,   sizeof topic,   "%s/%d/pos", "rm501", i);
+      snprintf(payload, sizeof payload, "%f", bot_fwd.j[i].pos);
+      mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
+    }
+  }
+#endif
   
 #ifdef HAVE_SDL
   if (do_sdl) {
@@ -1769,6 +1861,14 @@ fail1:
   }
 fail0:
 #endif
+
+#ifdef HAVE_MOSQUITTO
+  if (do_mosquitto) {
+    mosquitto_disconnect(mosq);
+    mosquitto_destroy(mosq);
+    mosquitto_lib_cleanup();
+  }
+#endif
+
   return EXIT_SUCCESS;
 }
-  
