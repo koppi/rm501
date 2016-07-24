@@ -128,7 +128,7 @@ YouTube channels (as of 2015):
 * [Ray Kurzweil](https://www.youtube.com/watch?v=q86jB4NN-Nc) – [Kraftwerk (2010)](https://www.youtube.com/watch?v=okhQtoQFG5s)
 * [2045: A New Era for Humanity](https://www.youtube.com/watch?v=01hbkh4hXEk) — [Noam Chomsky](https://www.youtube.com/watch?v=0kICLG4Zg8s)
 * [Gary Marcus](https://www.youtube.com/watch?v=xY-eUd0XuOs) – [Alan Winfield](https://www.youtube.com/watch?v=-e2MrWYRUF8)
-* [Tove Kjellmark](https://www.youtube.com/watch?v=QvI6vDb7QfY) – ...
+* [Tove Kjellmark](https://www.youtube.com/watch?v=QvI6vDb7QfY) – [Christos Papadimitriou](https://www.youtube.com/watch?v=yF-cq06C9Ck)
 
 ![hierarchy of robot neeeds](doc/maslow4.jpg)
 
