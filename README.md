@@ -129,7 +129,7 @@ YouTube channels (as of 2015):
 * [2045: A New Era for Humanity](https://www.youtube.com/watch?v=01hbkh4hXEk) — [Noam Chomsky](https://www.youtube.com/watch?v=0kICLG4Zg8s)
 * [Gary Marcus](https://www.youtube.com/watch?v=xY-eUd0XuOs) – [Alan Winfield](https://www.youtube.com/watch?v=-e2MrWYRUF8)
 * [Tove Kjellmark](https://www.youtube.com/watch?v=QvI6vDb7QfY) – [Christos Papadimitriou](https://www.youtube.com/watch?v=yF-cq06C9Ck)
-* [Galileo Galilei](https://www.youtube.com/watch?v=VXs4dpBwVHA)
+* [Galileo Galilei](https://www.youtube.com/watch?v=VXs4dpBwVHA) – [Seymour Papert](https://www.youtube.com/watch?v=4iIqLc0sjjs)
 
 ![hierarchy of robot neeeds](doc/maslow4.jpg)
 
