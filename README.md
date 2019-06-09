@@ -20,22 +20,25 @@ Untested / unfinished features:
 
 [Mitsubishi RM-501 Movemaster II Robot Simulator](doc/rm501.mkv)
 
-## Compile and run
-
-* Required libraries: [OpenGL](https://www.opengl.org/), [SDL2](https://www.libsdl.org/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/)
-* Optional libraries: [ncurses](https://www.gnu.org/software/ncurses/), [libpng](http://www.libpng.org/), [LinuxCNC / Machinekit HAL](http://linuxcnc.org/docs/html/hal/tutorial.html)
+## Clone, compile and run
 
 ```bash
-$ sudo apt-get -y install git 
+$ sudo apt -y install git 
 $ git clone https://github.com/koppi/rm501.git
 ```
 
+* Required: [OpenGL](https://www.opengl.org/), [SDL2](https://www.libsdl.org/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/)
+* Optional: [ncurses](https://www.gnu.org/software/ncurses/), [libpng](http://www.libpng.org/), [ZeroMQ](http://zeromq.org/), [Eclipse Mosquitto™](https://mosquitto.org/), [LinuxCNC / Machinekit HAL](http://linuxcnc.org/docs/html/hal/tutorial.html)
+
 ```bash
-$ sudo apt-get -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-net-dev
-$ sudo apt-get -y install libncurses-dev  libpng-dev
-$ sudo apt-get -y install ttf-dejavu-core # for DejaVuSansMono.ttf
-$ sudo apt -y install libzmq5 libzmq3-dev # (optional) for ZeroMQ support
-$ sudo apt -y install libmosquitto-dev    # (optional) for Mosquitto support
+$ # required packages
+$ sudo apt -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-net-dev
+$ sudo apt -y install ttf-dejavu-core # for DejaVuSansMono.ttf
+$ # optional packages
+$ sudo apt -y install libncurses-dev      # for console
+$ sudo apt -y install libpng-dev          # for screenshots
+$ sudo apt -y install libzmq5 libzmq3-dev # for ZeroMQ
+$ sudo apt -y install libmosquitto-dev    # for MQTT
 ```
 
 Compile and run:
