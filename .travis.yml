@@ -5,7 +5,6 @@ services:
 
 script:
   - export TRAVIS_DEBIAN_DISTRIBUTION=sid; wget -O- http://travis.debian.net/script.sh | sh -
-  - dpkg -c ../rm501_*deb
 
 branches:
   except:
