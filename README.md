@@ -35,7 +35,8 @@ $ git clone https://github.com/koppi/rm501.git
 ```bash
 $ # required packages
 $ sudo apt -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-net-dev
-$ sudo apt -y install ttf-dejavu-core # for DejaVuSansMono.ttf
+$ sudo usermod -aG input $USER            # for joystick access
+$ sudo apt -y install ttf-dejavu-core     # for DejaVuSansMono.ttf
 $ # optional packages
 $ sudo apt -y install libncurses-dev      # for console
 $ sudo apt -y install libpng-dev          # for screenshots
