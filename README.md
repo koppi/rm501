@@ -34,7 +34,11 @@ $ git clone https://github.com/koppi/rm501.git
 $ sudo apt-get -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-net-dev
 $ sudo apt-get -y install libncurses-dev  libpng-dev
 $ sudo apt-get -y install ttf-dejavu-core # for DejaVuSansMono.ttf
+$ sudo apt -y install libzmq5 libzmq3-dev # (optional) for ZeroMQ support
+$ sudo apt -y install libmosquitto-dev    # (optional) for Mosquitto support
 ```
+
+Compile and run:
 
 ```bash
 $ cd rm501/
@@ -42,7 +46,7 @@ $ make
 $ ./rm501
 ```
 
-– Tested on Ubuntu 16.04.
+– Tested on Ubuntu 18.04.
 
 ## Control
 
