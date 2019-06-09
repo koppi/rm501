@@ -46,7 +46,7 @@ Compile and run:
 ```bash
 $ cd rm501/
 $ make
-$ ./rm501
+$ ./rm501 -s # start program with SDL GUI
 ```
 
 – Tested on Ubuntu 18.04.
