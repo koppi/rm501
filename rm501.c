@@ -19,6 +19,8 @@
  *  MA  02110-1301  USA
  */
 
+#define PROGRAM_VERSION "0.0.1"
+
 // sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
 // for joystick access: sudo usermod -aG input $USER
 
@@ -1110,6 +1112,7 @@ int main(int argc, char** argv) {
 #endif
 
         int do_help = 0;
+        int do_version = 0;
         int verbose = 0;
 
         int i = 0;
@@ -1119,6 +1122,8 @@ int main(int argc, char** argv) {
 #define OPTION_VALUE_PROCESSED (i++)
 	  if (OPTION_SET("--help", "-h")) {
             do_help = 1;
+	  } else if (OPTION_SET("--version", "-v")) {
+            do_version = 1;
 #ifdef HAVE_SDL
 	  } else if (OPTION_SET("--fullscreen", "-f")) {
 	    sdl_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -1145,7 +1150,7 @@ int main(int argc, char** argv) {
           } else if (OPTION_SET("--mqtt", "-m")) {
             do_mosquitto = 1;
 #endif
-          } else if (OPTION_SET("--verbose", "-v")) {
+          } else if (OPTION_SET("--verbose", "-x")) {
             verbose++;
 	  } else {
 	    fprintf(stderr, "Unknown option: %s\n", argv[i]);
@@ -1153,8 +1158,13 @@ int main(int argc, char** argv) {
 	  }
         }
 
+        if (do_version) {
+	  fprintf(stdout, "%s %s\n", argv[0], PROGRAM_VERSION);
+            return EXIT_SUCCESS;
+	}
+	
         if (do_help) {
-            fprintf(stderr, "Usage: %s [OPTIONS]\n\n"
+            fprintf(stdout, "Usage: %s [OPTIONS]\n\n"
                     " Where [OPTIONS] are zero or more of the following:\n\n"
 #ifdef HAVE_SDL
                     "    [-s|--sdl]               SDL window mode\n"
@@ -1175,8 +1185,9 @@ int main(int argc, char** argv) {
 #ifdef HAVE_MOSQUITTO
                     "    [-m|--mqtt]              MQTT client mode\n"
 #endif
-                    "    [-v|--verbose]           Show verbose information\n\n"
+                    "    [-x|--verbose]           Show verbose information\n\n"
                     "    [-h|--help]              Show help information\n\n"
+                    "    [-v|--version]           Show version number\n\n"
                     , argv[0]);
             return EXIT_SUCCESS;
         }
