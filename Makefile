@@ -34,6 +34,9 @@ all: rm501
 rm501: rm501.o
 	$(CC) -o $@ $+ $(LDFLAGS) $(LDLIBS)
 
+rm501.1: rm501
+	help2man --no-discard-stderr ./$+ > $@
+
 install: rm501
 	strip rm501
 	mkdir -p $(INSTALL_PREFIX)$(PREFIX)/bin

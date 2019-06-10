@@ -50,7 +50,7 @@ binary-arch: build install
 #	dh_installchangelogs ChangeLog
 	dh_installdocs -a README.md
 	dh_install -a --sourcedir=$(CURDIR)/debian/rm501
-#	dh_installman rm501.1
+	dh_installman rm501.1
 	dh_installmime
 	dh_installmenu
 	dh_link
