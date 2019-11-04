@@ -99,51 +99,6 @@ $ ./rm501 -s # start program with SDL GUI
 
   Unfinished (see ```HAVE_HAL``` in source code).
 
-## Top 21 Companies in the Industrial Robotics Market
-
-YouTube channels (as of 2015):
-
-* https://www.youtube.com/user/ABBRobotics
-* https://www.youtube.com/user/FANUCRoboticsInc
-* https://www.youtube.com/user/YaskawaEMECHA
-* https://www.youtube.com/user/AdeptRobots
-* https://www.youtube.com/user/ApexAutomationRobots
-* https://www.youtube.com/user/AurotekCorporation
-* https://www.youtube.com/user/axiumautomation
-* https://www.youtube.com/user/DENSORobotics
-* https://www.youtube.com/user/densoroboticseurope
-* https://www.youtube.com/user/ellisontechnologies
-* https://www.youtube.com/user/KawasakiRobots
-* https://www.youtube.com/user/KukaRobotGroup
-* https://www.youtube.com/user/MitsubishiElect
-* https://www.youtube.com/user/NachiRobotic
-* https://www.youtube.com/user/PARIAutomation
-* https://www.youtube.com/user/ReisRoboticsChannel
-* https://www.youtube.com/user/ROKAutomation
-* https://www.youtube.com/user/SchunkHQ
-* https://www.youtube.com/user/StaubliGroup
-* https://www.youtube.com/user/TMRobotics1
-* https://www.youtube.com/user/YamahaRobotics
-
-## Robotics Art
-
-* [Leonardo Da Vinci](https://www.youtube.com/watch?v=opcpjufSNHM) – [Kraftwerk (1978)](https://www.youtube.com/watch?v=wHEoMpMvz7A)
-* [Primitive Technology](https://www.youtube.com/watch?v=nCKkHqlx9dE) – [HomoFaciens](https://www.youtube.com/watch?v=MlR-9Uiab60)
-* [Jelle Bakker](https://www.youtube.com/watch?v=VKL4hhNmKLY) – [denha](https://www.youtube.com/watch?v=EPbEnRSS6ow)
-* [Drew Berry](https://www.youtube.com/watch?v=dMPXu6GF18M) – [Peter Hoffmann](https://www.youtube.com/watch?v=YdjERhTczAs)
-* [Simone Giertz](https://www.youtube.com/watch?v=E2evC2xTNWg) – [Les Baugh](https://www.youtube.com/watch?v=KPhkVPNKtVA)
-* [Hugh Herr](https://www.youtube.com/watch?v=CDsNZJTWw0w) – [Samuel Koch](https://www.youtube.com/watch?v=iMmN3TGKavo)
-* [Matthew Wilson](https://www.youtube.com/watch?v=Ko0Sd-FzrzI) – [Kevin Warwick](https://www.youtube.com/watch?v=IMf8d5fxNkY)
-* [Niklas Roy](https://www.youtube.com/watch?v=lNc2_MXIee4) – [Dr. Guero](https://www.youtube.com/watch?v=FxM40qBK02U)
-* [Mike Lewis](https://www.youtube.com/watch?v=aRcXULN6mp4) – [Toy Robot](http://www.ignorancia.org/en/index.php?page=toy-robot)
-* [Ray Kurzweil](https://www.youtube.com/watch?v=q86jB4NN-Nc) – [Kraftwerk (2010)](https://www.youtube.com/watch?v=okhQtoQFG5s)
-* [2045: A New Era for Humanity](https://www.youtube.com/watch?v=01hbkh4hXEk) — [Noam Chomsky](https://www.youtube.com/watch?v=0kICLG4Zg8s)
-* [Gary Marcus](https://www.youtube.com/watch?v=xY-eUd0XuOs) – [Alan Winfield](https://www.youtube.com/watch?v=-e2MrWYRUF8)
-* [Tove Kjellmark](https://www.youtube.com/watch?v=QvI6vDb7QfY) – [Christos Papadimitriou](https://www.youtube.com/watch?v=yF-cq06C9Ck)
-* [Galileo Galilei](https://www.youtube.com/watch?v=VXs4dpBwVHA) – [Seymour Papert](https://www.youtube.com/watch?v=4iIqLc0sjjs)
-
-![hierarchy of robot neeeds](doc/maslow4.jpg)
-
 ## Authors
 
 https://github.com/koppi
