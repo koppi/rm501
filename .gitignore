@@ -1,3 +1,3 @@
 rm501
-rm501.o
+*.o
 build-stamp
