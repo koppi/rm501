@@ -1,7 +1,7 @@
 /*
  * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
  *
- * Copyright (C) 2013-2019 Jakob Flierl <jakob.flierl@gmail.com>
+ * Copyright (C) 2013-2020 Jakob Flierl <jakob.flierl@gmail.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -96,6 +96,10 @@
 #endif
 #endif
 
+#ifdef HAVE_TRAJGEN
+#include "trajgen.h"
+#endif
+
 volatile int done    = 0; // SIGINT or user exit requested
 
 #ifdef HAVE_HAL
@@ -149,6 +153,75 @@ int do_mosquitto = 0;
 struct mosquitto *mosq;
 #endif
 
+#ifdef HAVE_TRAJGEN
+real_t tg_speed;
+real_t tg_accel;
+real_t tg_blending;
+unsigned tg_n_joints;
+trajgen_t tg_tg;
+trajgen_config_t tg_cfg;
+pose_t tg_last_pose;
+char tg_err_str[1024];
+
+double rnd() {
+  return ((double)rand())/RAND_MAX;
+}
+
+double roundd(double v, unsigned digits) {
+  for(unsigned i=0; i<digits; i++) v*=10.;
+  v = round(v);
+  for(unsigned i=0; i<digits; i++) v/=10.;
+  return v;
+}
+
+double randpos(double max) {
+  return roundd(max*((rnd()*2)-1), 2);
+}
+
+void tg_echk (unsigned errno) {
+  if (errno) {
+    fprintf(stderr, "tg error: %s\n", trajgen_errstr(tg_tg.last_error.errno, tg_err_str, 1024));
+    exit(1); //XXX
+  }
+}
+
+void tg_init (real_t max_speed, real_t max_accel, real_t sample_frequency,
+	unsigned interpolation_rate, unsigned max_joints)
+  {
+    memset(tg_err_str, 0, sizeof(tg_err_str));
+    memset(&tg_last_pose, 0, sizeof(pose_t));
+    memset(&tg_tg, 0, sizeof(trajgen_t));
+    memset(&tg_cfg, 0, sizeof(trajgen_config_t));
+    
+    tg_n_joints = max_joints > TG_MAX_JOINTS ? TG_MAX_JOINTS : max_joints;
+    memset(&tg_cfg, 0, sizeof(trajgen_config_t));
+    tg_cfg.number_of_used_joints = tg_n_joints;
+    tg_cfg.max_coord_velocity = max_speed;
+    tg_cfg.max_coord_acceleration = max_accel;
+    tg_cfg.sample_interval = 1.0/sample_frequency;
+    tg_cfg.interpolation_rate = interpolation_rate;
+    pose_set_all(&tg_cfg.max_manual_velocities, max_speed);
+    pose_set_all(&tg_cfg.max_manual_accelerations, max_accel);
+    for (unsigned i = 0; i < tg_n_joints; i++) {
+      tg_cfg.joints[i].max_velocity = max_speed;
+      tg_cfg.joints[i].max_acceleration = max_speed;
+    }
+    tg_echk(trajgen_initialize(&tg_tg, tg_cfg));
+  }
+
+void tg_line(double x, double y, double z) {
+    pose_t p;
+    p.x = isnan(x) ? tg_last_pose.x : x; p.y = isnan(y) ? tg_last_pose.y : y;
+    p.z = isnan(z) ? tg_last_pose.z : z;
+    tg_last_pose = p;
+
+    //fprintf(stderr, "# line {x:%.6g, y:%.6g, z:%.6g, v:%.6g, a:%.6g, tol:%.6g }\n",
+    // p.x, p.y, p.z, tg_speed, tg_accel, tg_blending);
+    tg_echk(trajgen_add_line(p, tg_speed, tg_accel));
+  }
+
+#endif
+
 typedef struct {
     double d1, d5, a2, a3; // dh parameters
 
@@ -163,7 +236,7 @@ typedef struct {
 
     double t[16];  // tool matrix
     int  err;      // error a to joint number if inverse kinematics fails
-    char msg[512]; // opt. message from inverse kinematics
+    char msg[2048]; // opt. message from inverse kinematics
 
 #ifdef PROJ3
     int proj3counter;
@@ -1410,6 +1483,7 @@ int main(int argc, char** argv) {
       
       if (!sdl_font) {
 	fprintf(stderr, "%s: %s\n", SDL_GetError(), sdl_font_file);
+	exit(EXIT_FAILURE);
       }
       
       if (SDL_GetCurrentDisplayMode(0, &sdl_displaymode) != 0) {
@@ -1522,6 +1596,17 @@ int main(int argc, char** argv) {
     }
 #endif
 
+#ifdef HAVE_TRAJGEN
+    tg_init(1000, 25000, 1000.0, 1, 3);
+    tg_echk(trajgen_switch_state(TRAJ_STATE_COORDINATED));
+    while (!tg_tg.is_done) tg_echk(trajgen_tick());
+    tg_speed = 100;
+    tg_accel = 5000;
+    tg_blending = 15;
+    tg_line(1.6, 3.2, 0.0);
+    while (!tg_tg.is_done) tg_echk(trajgen_tick());
+#endif
+    
     while (!done) {
 #ifdef HAVE_SDL
   if (do_sdl) {
@@ -1554,7 +1639,7 @@ int main(int argc, char** argv) {
     if (keys[SDL_SCANCODE_D]) { jog_joint(&bot_fwd, 2, -cnt); }
     if (keys[SDL_SCANCODE_F]) { jog_joint(&bot_fwd, 3, -cnt); }
     if (keys[SDL_SCANCODE_G]) { jog_joint(&bot_fwd, 4, -cnt); }
-    
+
     if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
       if (keys[SDL_SCANCODE_LEFT])     { move_tool(&bot_inv, 0, -d); }
       if (keys[SDL_SCANCODE_RIGHT])    { move_tool(&bot_inv, 0,  d); }
@@ -1577,6 +1662,27 @@ int main(int argc, char** argv) {
       }
     }
 	  
+#ifdef HAVE_TRAJGEN
+    trajgen_tick();
+
+    double oldx = bot_inv.t[12];
+    double oldy = bot_inv.t[13];
+    double oldz = bot_inv.t[14];
+
+    double dx = tg_tg.joints[0].position - oldx;
+    double dy = tg_tg.joints[1].position - oldy;
+    double dz = tg_tg.joints[2].position - oldz;
+
+    move_tool(&bot_inv, 0, dx);
+    move_tool(&bot_inv, 1, dy);
+    move_tool(&bot_inv, 2, dz);
+
+    if (trajgen_num_queued() < 10) {
+      tg_line(2.8 + randpos(0.5), 1.0 + randpos(1), randpos(2));
+    }
+
+#endif
+    
 #ifdef PROJ2
 ///////////////////////////////////////////////////////////////////////////////
     if (keys[SDL_SCANCODE_H]) {

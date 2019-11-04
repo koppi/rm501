@@ -22,8 +22,12 @@ CURSES_LDLIBS := -lcurses
 #MOSQ_CFLAGS := -DHAVE_MOSQUITTO
 #MOSQ_LDLIBS := -lmosquitto
 
-CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MOSQ_CFLAGS) -O2 -g -Wall
-LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MOSQ_LDLIBS) -lm
+# comment out to disable trajectory calculation functionality
+#TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
+#TRAJGEN_LDLIBS :=
+
+CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MOSQ_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall
+LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MOSQ_LDLIBS) $(TRAJGEN_LDLIBS) -lm
 LDFLAGS += -Wl,--as-needed
 
 all: rm501
@@ -31,7 +35,7 @@ all: rm501
 %.o: %.c
 	$(CC) -o $@ -c $(CFLAGS) $+
 
-rm501: rm501.o
+rm501: rm501.o trajgen.o
 	$(CC) -o $@ $+ $(LDFLAGS) $(LDLIBS)
 
 rm501.1: rm501

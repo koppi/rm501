@@ -12,6 +12,7 @@ Working features:
 
 Untested / unfinished features:
  
+ * [Stefan Wilhelm's trajectory planner](http://atwillys.de/),
  * [ncurses](https://www.gnu.org/software/ncurses/) UI,
  * control from network via [Internet socket](https://en.wikipedia.org/wiki/Internet_socket),
  * control from [LinuxCNC](http://www.linuxcnc.org/) or [Machinekit](http://www.machinekit.io/) via [HAL](http://linuxcnc.org/docs/html/hal/intro.html).
@@ -57,11 +58,12 @@ $ ./rm501 -s # start program with SDL GUI
 ## Control
 
 * Control via keyboard:
+  * ESC: quit the simulator,
   * Q, W, E, R, T: increase the joint values for waist, shoulder, elbow, pitch and roll,
   * A, S, D, F, G: decrease the joint values for waist, shoulder, elbow, pitch and roll,
   * I, K, and direction keys (on your right-hand side): control the end-effector position.
   * C, V: move end effector in a circle in the x-y plane, reset circle position.
-  * N, K: move to 'nest' position, move to the 'all link horizontal' home position
+  * N, K: move to 'nest' position, move to the 'all link horizontal' home position.
   
     Hold the shift key to move the joints in parallel, not linearly.
   
