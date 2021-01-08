@@ -1,7 +1,7 @@
 /*
  * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
  *
- * Copyright (C) 2013-2019 Jakob Flierl <jakob.flierl@gmail.com>
+ * Copyright (C) 2013-2021 Jakob Flierl <jakob.flierl@gmail.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
