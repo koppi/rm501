@@ -1,7 +1,7 @@
 /*
  * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
  *
- * Copyright (C) 2013-2020 Jakob Flierl <jakob.flierl@gmail.com>
+ * Copyright (C) 2013-2021 Jakob Flierl <jakob.flierl@gmail.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -41,6 +41,7 @@
 //#define HAVE_SOCKET          // unfinished
 //#define HAVE_MOSQUITTO       // unfinished
 //#define HAVE_ZMQ             // unfinished
+//#define HAVE_TRAJGEN         // unfinished
 
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
 #define PROJ2
@@ -227,6 +228,7 @@ typedef struct {
 
     struct joint_s {
         double pos;
+        double vel;
         double min;
         double max;
 #ifdef PROJ2
@@ -801,24 +803,27 @@ void cross(float th, float l) {
 
         glColor3ub( 25, 200, 25 );
 
+        text(15, 10, sdl_font, "AXIS:  POS:     VEL:");
+
         int i;
         for (i = 0; i < 5; i++) {
-            text(15, 10+i*TTF_FontHeight(sdl_font), sdl_font, "%d: %7.2f", i+1, bot->j[i].pos);
+            text(15, 10+(i+1)*TTF_FontHeight(sdl_font), sdl_font,
+                 "%d: %8.2f %8.3f", i+1, bot->j[i].pos, bot->j[i].vel);
         }
 
-        text(15, 10+6*TTF_FontHeight(sdl_font), sdl_font, "x: %7.2f", bot->t[12]);
-        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "y: %7.2f", bot->t[13]);
-        text(15, 10+8*TTF_FontHeight(sdl_font), sdl_font, "z: %7.2f", bot->t[14]);
+        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "x: %8.2f", bot->t[12]);
+        text(15, 10+8*TTF_FontHeight(sdl_font), sdl_font, "y: %8.2f", bot->t[13]);
+        text(15, 10+9*TTF_FontHeight(sdl_font), sdl_font, "z: %8.2f", bot->t[14]);
 
         double r, p, y;
 
         pmMatRpyConvert(bot->t, &r, &p, &y);
 
-        text(15, 10+10*TTF_FontHeight(sdl_font), sdl_font, "a: %7.2f", rad2deg(r));
-        text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "b: %7.2f", rad2deg(p));
-        text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "c: %7.2f", rad2deg(y));
+        text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "a: %8.2f", rad2deg(r));
+        text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "b: %8.2f", rad2deg(p));
+        text(15, 10+13*TTF_FontHeight(sdl_font), sdl_font, "c: %8.2f", rad2deg(y));
 
-        text(width - 370,10, sdl_font, "tool"); text_matrix(width - 320, 10, bot->t);
+        text(width - 370,10, sdl_font, "TOOL"); text_matrix(width - 320, 10, bot->t);
 
         if (strlen(bot->msg)) {
             text(15, height - TTF_FontHeight(sdl_font) * 1.5, sdl_font, bot->msg);
@@ -1615,6 +1620,13 @@ int main(int argc, char** argv) {
 #endif
     
     while (!done) {
+
+        static double old_pos[5];
+        
+        for (int i = 0; i < 5; i++) {
+            old_pos[i] = bot_fwd.j[i].pos;
+        }
+
 #ifdef HAVE_SDL
   if (do_sdl) {
     SDL_PollEvent(&ev);
@@ -1866,6 +1878,12 @@ int main(int argc, char** argv) {
 
   do_kins_fwd = 0;
   do_kins_inv = 0;
+
+  // update joint velocity values
+  for (int i = 0; i < 5; i++) {
+      bot_fwd.j[i].vel = bot_fwd.j[i].pos - old_pos[i];
+      bot_inv.j[i].vel = bot_inv.j[i].pos - old_pos[i];
+  }
 
 #ifdef HAVE_SDL
   if (do_sdl) {
