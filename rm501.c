@@ -154,6 +154,7 @@ struct mosquitto *mosq;
 #endif
 
 #ifdef HAVE_TRAJGEN
+int do_trajgen_test = 0;
 real_t tg_speed;
 real_t tg_accel;
 real_t tg_blending;
@@ -215,8 +216,7 @@ void tg_line(double x, double y, double z) {
     p.z = isnan(z) ? tg_last_pose.z : z;
     tg_last_pose = p;
 
-    //fprintf(stderr, "# line {x:%.6g, y:%.6g, z:%.6g, v:%.6g, a:%.6g, tol:%.6g }\n",
-    // p.x, p.y, p.z, tg_speed, tg_accel, tg_blending);
+    fprintf(stderr, "# line {x:%.6g, y:%.6g, z:%.6g, v:%.6g, a:%.6g, tol:%.6g }\n", p.x, p.y, p.z, tg_speed, tg_accel, tg_blending);
     tg_echk(trajgen_add_line(p, tg_speed, tg_accel));
   }
 
@@ -1207,6 +1207,10 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--hal", "-l")) {
 	    do_hal = 1;
 #endif
+#ifdef HAVE_TRAJGEN
+	  } else if (OPTION_SET("--trajgen-test", "-t")) {
+	    do_trajgen_test = 1;
+#endif
 #ifdef HAVE_NCURSES
 	  } else if (OPTION_SET("--curses", "-c")) {
 	    do_curses = 1;
@@ -1248,6 +1252,9 @@ int main(int argc, char** argv) {
 #endif
 #ifdef HAVE_HAL
                     "    [-l|--hal]               HAL mode\n"
+#endif
+#ifdef HAVE_TRAJGEN
+                    "    [-t|--trajgen-test]      Do trajgen test\n"
 #endif
 #ifdef HAVE_SOCKET
                     "    [-n|--net]               Network server mode\n"
@@ -1662,27 +1669,6 @@ int main(int argc, char** argv) {
       }
     }
 	  
-#ifdef HAVE_TRAJGEN
-    trajgen_tick();
-
-    double oldx = bot_inv.t[12];
-    double oldy = bot_inv.t[13];
-    double oldz = bot_inv.t[14];
-
-    double dx = tg_tg.joints[0].position - oldx;
-    double dy = tg_tg.joints[1].position - oldy;
-    double dz = tg_tg.joints[2].position - oldz;
-
-    move_tool(&bot_inv, 0, dx);
-    move_tool(&bot_inv, 1, dy);
-    move_tool(&bot_inv, 2, dz);
-
-    if (trajgen_num_queued() < 10) {
-      tg_line(2.8 + randpos(0.5), 1.0 + randpos(1), randpos(2));
-    }
-
-#endif
-    
 #ifdef PROJ2
 ///////////////////////////////////////////////////////////////////////////////
     if (keys[SDL_SCANCODE_H]) {
@@ -1847,6 +1833,28 @@ int main(int argc, char** argv) {
   }
 #endif
 
+#ifdef HAVE_TRAJGEN
+  if (do_trajgen_test) {
+      trajgen_tick();
+      
+      double oldx = bot_inv.t[12];
+      double oldy = bot_inv.t[13];
+      double oldz = bot_inv.t[14];
+      
+      double dx = tg_tg.joints[0].position - oldx;
+      double dy = tg_tg.joints[1].position - oldy;
+      double dz = tg_tg.joints[2].position - oldz;
+      
+      move_tool(&bot_inv, 0, dx);
+      move_tool(&bot_inv, 1, dy);
+      move_tool(&bot_inv, 2, dz);
+      
+      if (trajgen_num_queued() < 2) {
+          tg_line(2.8 + randpos(0.5), 1.0 + randpos(1), randpos(2));
+      }
+  }
+#endif
+    
   update_model(&bot_fwd, &bot_inv, do_kins_fwd, do_kins_inv);
 
   if (do_kins_inv || do_kins_fwd) {
