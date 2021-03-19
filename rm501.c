@@ -1947,6 +1947,10 @@ int main(int argc, char** argv) {
       snprintf(topic,   sizeof topic,   "%s/%d/pos", "rm501", i);
       snprintf(payload, sizeof payload, "%f", bot_fwd.j[i].pos);
       mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
+
+      snprintf(topic,   sizeof topic,   "%s/%d/vel", "rm501", i);
+      snprintf(payload, sizeof payload, "%f", bot_fwd.j[i].vel);
+      mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
     }
   }
 #endif
