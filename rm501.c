@@ -26,6 +26,7 @@
 
 //#define HAVE_SDL           // working
 #ifdef HAVE_SDL
+  #define HAVE_AUDIO       // working, requires HAVE_SDL
   #define HAVE_JOYSTICK    // working, requires HAVE_SDL
   #define HAVE_PNG         // working, requires HAVE_SDL
   #define ENABLE_FPS_LIMIT // working, requires HAVE_SDL
@@ -124,6 +125,12 @@ TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
 SDL_Renderer *sdl_renderer;
+
+#ifdef HAVE_AUDIO
+int do_audio = 0;
+double MIDDLE_C[5];
+int middle_c_dist[5];
+#endif
 #endif
 
 #ifdef HAVE_NCURSES
@@ -221,7 +228,7 @@ void tg_line(double x, double y, double z) {
     tg_echk(trajgen_add_line(p, tg_speed, tg_accel));
   }
 
-#endif
+#endif // HAVE_TRAJGEN
 
 typedef struct {
     double d1, d5, a2, a3; // dh parameters
@@ -245,6 +252,63 @@ typedef struct {
 #endif
 
 } bot_t;
+
+#ifdef HAVE_AUDIO
+short middle_c_gen() {
+    double volume = 0.05;
+    short out = 0;
+    
+#define AXES 5
+    for (int i = 0; i < AXES; i++) {
+        middle_c_dist[i]++; /* Take one sample */
+        int MIDDLE_C_SAMPLES = 44100/MIDDLE_C[i];
+
+        if(middle_c_dist[i] >= MIDDLE_C_SAMPLES)
+            middle_c_dist[i] = 0;
+
+        /* Low? */
+        if(middle_c_dist[i] < MIDDLE_C_SAMPLES/2)
+            out += -32768 * volume / AXES;
+        else
+        /* High */
+            out += 32767 * volume / AXES;
+    }
+#undef AXES
+    return out;
+}
+
+void fill_audio(void *data,Uint8 *stream,int len) {
+    short *buff;
+    int i;
+    /* Cast */
+    buff = (short*)stream;
+    len /= 2; /* Because we're now using shorts */
+    /* Square */
+    for(i = 0;i < len;i += 2)
+    {
+        buff[i] = middle_c_gen(); /* Left */
+        buff[i+1] = buff[i]; /* Right, same as left */
+    }
+}
+
+void open_audio() {
+    SDL_AudioSpec as;
+    /* Fill out what we want */
+    as.freq = 44100;
+    as.format = AUDIO_S16SYS;
+    as.channels = 2;
+    as.samples = 1024;
+    as.callback = fill_audio;
+    /* Get it */
+    SDL_OpenAudio(&as,NULL);
+    /* Go! */
+    SDL_PauseAudio(0);
+}
+
+void close_audio() {
+    SDL_CloseAudio();
+}
+#endif // HAVE_AUDIO
 
 #define rad2deg(rad) ((rad)*(180.0/M_PI))
 #define deg2rad(deg) ((deg)*(M_PI/180.0))
@@ -1208,6 +1272,10 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--sdl", "-s")) {
                 do_sdl = 1;
 #endif
+#ifdef HAVE_AUDIO
+	  } else if (OPTION_SET("--audio", "-a")) {
+	    do_audio = 1;
+#endif
 #ifdef HAVE_HAL
 	  } else if (OPTION_SET("--hal", "-l")) {
 	    do_hal = 1;
@@ -1251,6 +1319,9 @@ int main(int argc, char** argv) {
 #ifdef HAVE_SDL
                     "    [-s|--sdl]               SDL window mode\n"
                     "    [-f|--fullscreen]        Fullscreen mode\n"
+#endif
+#ifdef HAVE_AUDIO
+                    "    [-a|--audio]             Motor motion audio\n"
 #endif
 #ifdef HAVE_NCURSES
                     "    [-c|--curses]            Curses text mode\n"
@@ -1469,10 +1540,16 @@ int main(int argc, char** argv) {
       SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #endif
       if (SDL_Init(SDL_INIT_EVERYTHING) < 0)   {
-	fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
-	exit(EXIT_FAILURE);
+	    fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
+	    exit(EXIT_FAILURE);
       }
 
+#ifdef HAVE_AUDIO
+      if (do_audio) {
+        open_audio();
+      }
+#endif
+      
 #ifdef HAVE_JOYSTICK
       if (SDL_NumJoysticks() < 1) {
 	printf( "Warning: No joysticks connected!\n" );
@@ -1890,8 +1967,15 @@ int main(int argc, char** argv) {
     display(&bot_fwd, &bot_inv);
     SDL_RenderPresent(sdl_renderer);
     // screenshot(0, 0, "screenshot.png");
+#ifdef HAVE_AUDIO
+    if (do_audio) {
+        for (int i = 0; i < 5; i++) {
+            MIDDLE_C[i] = fabs(bot_fwd.j[i].vel * 261.626);
+        }
+    }
+#endif // HAVE_AUDIO
   }
-#endif
+#endif // HAVE_SDL
 
 #ifdef HAVE_NCURSES
   if (do_curses) {
@@ -1986,7 +2070,13 @@ int main(int argc, char** argv) {
 	
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(sdl_window);
-    
+
+#ifdef HAVE_AUDIO
+    if (do_audio) {
+      close_audio();
+    }
+#endif
+
     SDL_Quit();
   }
 #endif

@@ -8,10 +8,11 @@ Working features:
  * [OpenGL](https://www.opengl.org/) GUI,
  * control from [computer keyboard](https://en.wikipedia.org/wiki/Computer_keyboard), [Gamepad](https://en.wikipedia.org/wiki/Gamepad) or [3D mouse](https://en.wikipedia.org/wiki/3Dconnexion),
  * [forward](https://en.wikipedia.org/wiki/Forward_kinematics) and [inverse](https://en.wikipedia.org/wiki/Inverse_kinematics) kinematics ([double precision math](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)),
- * implemented in one [C](https://en.wikipedia.org/wiki/C_(programming_language)) file for simplicity and portability.
+ * implemented in one [C](https://en.wikipedia.org/wiki/C_(programming_language)) file for simplicity and portability,
+ * motor motion sound (see ```HAVE_AUDIO``` in source code).
 
 Untested / unfinished features:
- 
+
  * [Stefan Wilhelm's trajectory planner](http://atwillys.de/),
  * [ncurses](https://www.gnu.org/software/ncurses/) UI,
  * control from network via [Internet socket](https://en.wikipedia.org/wiki/Internet_socket),
