@@ -2027,13 +2027,19 @@ int main(int argc, char** argv) {
   char payload[64];
 
   if (do_mosquitto) {
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+
+    //printf("%f\n", tv.tv_sec + tv.tv_usec * 0.000001);
+
     for (i = 0; i < 5; i++) {
       snprintf(topic,   sizeof topic,   "%s/%d/pos", "rm501", i);
-      snprintf(payload, sizeof payload, "%f", bot_fwd.j[i].pos);
+      snprintf(payload, sizeof payload, "%f %f", tv.tv_sec + tv.tv_usec * 0.000001, bot_fwd.j[i].pos);
       mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
 
       snprintf(topic,   sizeof topic,   "%s/%d/vel", "rm501", i);
-      snprintf(payload, sizeof payload, "%f", bot_fwd.j[i].vel);
+      snprintf(payload, sizeof payload, "%f %f", tv.tv_sec + tv.tv_usec * 0.000001, bot_fwd.j[i].vel);
       mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
     }
   }
