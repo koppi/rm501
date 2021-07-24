@@ -1,7 +1,7 @@
 /*
  * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
  *
- * Copyright (C) 2013-2020 Jakob Flierl <jakob.flierl@gmail.com>
+ * Copyright (C) 2013-2021 Jakob Flierl <jakob.flierl@gmail.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -26,6 +26,7 @@
 
 //#define HAVE_SDL           // working
 #ifdef HAVE_SDL
+  #define HAVE_AUDIO       // working, requires HAVE_SDL
   #define HAVE_JOYSTICK    // working, requires HAVE_SDL
   #define HAVE_PNG         // working, requires HAVE_SDL
   #define ENABLE_FPS_LIMIT // working, requires HAVE_SDL
@@ -41,6 +42,7 @@
 //#define HAVE_SOCKET          // unfinished
 //#define HAVE_MOSQUITTO       // unfinished
 //#define HAVE_ZMQ             // unfinished
+//#define HAVE_TRAJGEN         // unfinished
 
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
 #define PROJ2
@@ -123,6 +125,12 @@ TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
 SDL_Renderer *sdl_renderer;
+
+#ifdef HAVE_AUDIO
+int do_audio = 0;
+double MIDDLE_C[5];
+int middle_c_dist[5];
+#endif
 #endif
 
 #ifdef HAVE_NCURSES
@@ -154,6 +162,7 @@ struct mosquitto *mosq;
 #endif
 
 #ifdef HAVE_TRAJGEN
+int do_trajgen_test = 0;
 real_t tg_speed;
 real_t tg_accel;
 real_t tg_blending;
@@ -215,18 +224,18 @@ void tg_line(double x, double y, double z) {
     p.z = isnan(z) ? tg_last_pose.z : z;
     tg_last_pose = p;
 
-    //fprintf(stderr, "# line {x:%.6g, y:%.6g, z:%.6g, v:%.6g, a:%.6g, tol:%.6g }\n",
-    // p.x, p.y, p.z, tg_speed, tg_accel, tg_blending);
+    fprintf(stderr, "# line {x:%.6g, y:%.6g, z:%.6g, v:%.6g, a:%.6g, tol:%.6g }\n", p.x, p.y, p.z, tg_speed, tg_accel, tg_blending);
     tg_echk(trajgen_add_line(p, tg_speed, tg_accel));
   }
 
-#endif
+#endif // HAVE_TRAJGEN
 
 typedef struct {
     double d1, d5, a2, a3; // dh parameters
 
     struct joint_s {
         double pos;
+        double vel;
         double min;
         double max;
 #ifdef PROJ2
@@ -243,6 +252,63 @@ typedef struct {
 #endif
 
 } bot_t;
+
+#ifdef HAVE_AUDIO
+short middle_c_gen() {
+    double volume = 0.05;
+    short out = 0;
+    
+#define AXES 5
+    for (int i = 0; i < AXES; i++) {
+        middle_c_dist[i]++; /* Take one sample */
+        int MIDDLE_C_SAMPLES = 44100/MIDDLE_C[i];
+
+        if(middle_c_dist[i] >= MIDDLE_C_SAMPLES)
+            middle_c_dist[i] = 0;
+
+        /* Low? */
+        if(middle_c_dist[i] < MIDDLE_C_SAMPLES/2)
+            out += -32768 * volume / AXES;
+        else
+        /* High */
+            out += 32767 * volume / AXES;
+    }
+#undef AXES
+    return out;
+}
+
+void fill_audio(void *data,Uint8 *stream,int len) {
+    short *buff;
+    int i;
+    /* Cast */
+    buff = (short*)stream;
+    len /= 2; /* Because we're now using shorts */
+    /* Square */
+    for(i = 0;i < len;i += 2)
+    {
+        buff[i] = middle_c_gen(); /* Left */
+        buff[i+1] = buff[i]; /* Right, same as left */
+    }
+}
+
+void open_audio() {
+    SDL_AudioSpec as;
+    /* Fill out what we want */
+    as.freq = 44100;
+    as.format = AUDIO_S16SYS;
+    as.channels = 2;
+    as.samples = 1024;
+    as.callback = fill_audio;
+    /* Get it */
+    SDL_OpenAudio(&as,NULL);
+    /* Go! */
+    SDL_PauseAudio(0);
+}
+
+void close_audio() {
+    SDL_CloseAudio();
+}
+#endif // HAVE_AUDIO
 
 #define rad2deg(rad) ((rad)*(180.0/M_PI))
 #define deg2rad(deg) ((deg)*(M_PI/180.0))
@@ -801,24 +867,27 @@ void cross(float th, float l) {
 
         glColor3ub( 25, 200, 25 );
 
+        text(15, 10, sdl_font, "AXIS:  POS:     VEL:");
+
         int i;
         for (i = 0; i < 5; i++) {
-            text(15, 10+i*TTF_FontHeight(sdl_font), sdl_font, "%d: %7.2f", i+1, bot->j[i].pos);
+            text(15, 10+(i+1)*TTF_FontHeight(sdl_font), sdl_font,
+                 "%d: %8.2f %8.3f", i+1, bot->j[i].pos, bot->j[i].vel);
         }
 
-        text(15, 10+6*TTF_FontHeight(sdl_font), sdl_font, "x: %7.2f", bot->t[12]);
-        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "y: %7.2f", bot->t[13]);
-        text(15, 10+8*TTF_FontHeight(sdl_font), sdl_font, "z: %7.2f", bot->t[14]);
+        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "x: %8.2f", bot->t[12]);
+        text(15, 10+8*TTF_FontHeight(sdl_font), sdl_font, "y: %8.2f", bot->t[13]);
+        text(15, 10+9*TTF_FontHeight(sdl_font), sdl_font, "z: %8.2f", bot->t[14]);
 
         double r, p, y;
 
         pmMatRpyConvert(bot->t, &r, &p, &y);
 
-        text(15, 10+10*TTF_FontHeight(sdl_font), sdl_font, "a: %7.2f", rad2deg(r));
-        text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "b: %7.2f", rad2deg(p));
-        text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "c: %7.2f", rad2deg(y));
+        text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "a: %8.2f", rad2deg(r));
+        text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "b: %8.2f", rad2deg(p));
+        text(15, 10+13*TTF_FontHeight(sdl_font), sdl_font, "c: %8.2f", rad2deg(y));
 
-        text(width - 370,10, sdl_font, "tool"); text_matrix(width - 320, 10, bot->t);
+        text(width - 370,10, sdl_font, "TOOL"); text_matrix(width - 320, 10, bot->t);
 
         if (strlen(bot->msg)) {
             text(15, height - TTF_FontHeight(sdl_font) * 1.5, sdl_font, bot->msg);
@@ -1203,9 +1272,17 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--sdl", "-s")) {
                 do_sdl = 1;
 #endif
+#ifdef HAVE_AUDIO
+	  } else if (OPTION_SET("--audio", "-a")) {
+	    do_audio = 1;
+#endif
 #ifdef HAVE_HAL
 	  } else if (OPTION_SET("--hal", "-l")) {
 	    do_hal = 1;
+#endif
+#ifdef HAVE_TRAJGEN
+	  } else if (OPTION_SET("--trajgen-test", "-t")) {
+	    do_trajgen_test = 1;
 #endif
 #ifdef HAVE_NCURSES
 	  } else if (OPTION_SET("--curses", "-c")) {
@@ -1243,11 +1320,17 @@ int main(int argc, char** argv) {
                     "    [-s|--sdl]               SDL window mode\n"
                     "    [-f|--fullscreen]        Fullscreen mode\n"
 #endif
+#ifdef HAVE_AUDIO
+                    "    [-a|--audio]             Motor motion audio\n"
+#endif
 #ifdef HAVE_NCURSES
                     "    [-c|--curses]            Curses text mode\n"
 #endif
 #ifdef HAVE_HAL
                     "    [-l|--hal]               HAL mode\n"
+#endif
+#ifdef HAVE_TRAJGEN
+                    "    [-t|--trajgen-test]      Do trajgen test\n"
 #endif
 #ifdef HAVE_SOCKET
                     "    [-n|--net]               Network server mode\n"
@@ -1457,10 +1540,16 @@ int main(int argc, char** argv) {
       SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #endif
       if (SDL_Init(SDL_INIT_EVERYTHING) < 0)   {
-	fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
-	exit(EXIT_FAILURE);
+	    fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
+	    exit(EXIT_FAILURE);
       }
 
+#ifdef HAVE_AUDIO
+      if (do_audio) {
+        open_audio();
+      }
+#endif
+      
 #ifdef HAVE_JOYSTICK
       if (SDL_NumJoysticks() < 1) {
 	printf( "Warning: No joysticks connected!\n" );
@@ -1608,6 +1697,13 @@ int main(int argc, char** argv) {
 #endif
     
     while (!done) {
+
+        static double old_pos[5];
+        
+        for (int i = 0; i < 5; i++) {
+            old_pos[i] = bot_fwd.j[i].pos;
+        }
+
 #ifdef HAVE_SDL
   if (do_sdl) {
     SDL_PollEvent(&ev);
@@ -1662,27 +1758,6 @@ int main(int argc, char** argv) {
       }
     }
 	  
-#ifdef HAVE_TRAJGEN
-    trajgen_tick();
-
-    double oldx = bot_inv.t[12];
-    double oldy = bot_inv.t[13];
-    double oldz = bot_inv.t[14];
-
-    double dx = tg_tg.joints[0].position - oldx;
-    double dy = tg_tg.joints[1].position - oldy;
-    double dz = tg_tg.joints[2].position - oldz;
-
-    move_tool(&bot_inv, 0, dx);
-    move_tool(&bot_inv, 1, dy);
-    move_tool(&bot_inv, 2, dz);
-
-    if (trajgen_num_queued() < 10) {
-      tg_line(2.8 + randpos(0.5), 1.0 + randpos(1), randpos(2));
-    }
-
-#endif
-    
 #ifdef PROJ2
 ///////////////////////////////////////////////////////////////////////////////
     if (keys[SDL_SCANCODE_H]) {
@@ -1847,6 +1922,28 @@ int main(int argc, char** argv) {
   }
 #endif
 
+#ifdef HAVE_TRAJGEN
+  if (do_trajgen_test) {
+      trajgen_tick();
+      
+      double oldx = bot_inv.t[12];
+      double oldy = bot_inv.t[13];
+      double oldz = bot_inv.t[14];
+      
+      double dx = tg_tg.joints[0].position - oldx;
+      double dy = tg_tg.joints[1].position - oldy;
+      double dz = tg_tg.joints[2].position - oldz;
+      
+      move_tool(&bot_inv, 0, dx);
+      move_tool(&bot_inv, 1, dy);
+      move_tool(&bot_inv, 2, dz);
+      
+      if (trajgen_num_queued() < 2) {
+          tg_line(2.8 + randpos(0.5), 1.0 + randpos(1), randpos(2));
+      }
+  }
+#endif
+    
   update_model(&bot_fwd, &bot_inv, do_kins_fwd, do_kins_inv);
 
   if (do_kins_inv || do_kins_fwd) {
@@ -1859,13 +1956,26 @@ int main(int argc, char** argv) {
   do_kins_fwd = 0;
   do_kins_inv = 0;
 
+  // update joint velocity values
+  for (int i = 0; i < 5; i++) {
+      bot_fwd.j[i].vel = bot_fwd.j[i].pos - old_pos[i];
+      bot_inv.j[i].vel = bot_inv.j[i].pos - old_pos[i];
+  }
+
 #ifdef HAVE_SDL
   if (do_sdl) {
     display(&bot_fwd, &bot_inv);
     SDL_RenderPresent(sdl_renderer);
     // screenshot(0, 0, "screenshot.png");
+#ifdef HAVE_AUDIO
+    if (do_audio) {
+        for (int i = 0; i < 5; i++) {
+            MIDDLE_C[i] = fabs(bot_fwd.j[i].vel * 261.626);
+        }
+    }
+#endif // HAVE_AUDIO
   }
-#endif
+#endif // HAVE_SDL
 
 #ifdef HAVE_NCURSES
   if (do_curses) {
@@ -1917,9 +2027,19 @@ int main(int argc, char** argv) {
   char payload[64];
 
   if (do_mosquitto) {
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+
+    //printf("%f\n", tv.tv_sec + tv.tv_usec * 0.000001);
+
     for (i = 0; i < 5; i++) {
       snprintf(topic,   sizeof topic,   "%s/%d/pos", "rm501", i);
-      snprintf(payload, sizeof payload, "%f", bot_fwd.j[i].pos);
+      snprintf(payload, sizeof payload, "%f %f", tv.tv_sec + tv.tv_usec * 0.000001, bot_fwd.j[i].pos);
+      mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
+
+      snprintf(topic,   sizeof topic,   "%s/%d/vel", "rm501", i);
+      snprintf(payload, sizeof payload, "%f %f", tv.tv_sec + tv.tv_usec * 0.000001, bot_fwd.j[i].vel);
       mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
     }
   }
@@ -1956,7 +2076,13 @@ int main(int argc, char** argv) {
 	
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(sdl_window);
-    
+
+#ifdef HAVE_AUDIO
+    if (do_audio) {
+      close_audio();
+    }
+#endif
+
     SDL_Quit();
   }
 #endif
