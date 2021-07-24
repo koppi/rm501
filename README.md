@@ -17,8 +17,6 @@ Untested / unfinished features:
  * control from network via [Internet socket](https://en.wikipedia.org/wiki/Internet_socket),
  * control from [LinuxCNC](http://www.linuxcnc.org/) or [Machinekit](http://www.machinekit.io/) via [HAL](http://linuxcnc.org/docs/html/hal/intro.html).
 
-[![Build Status](https://travis-ci.org/koppi/rm501.svg?branch=master)](https://travis-ci.org/koppi/rm501)
-
 ## Video
 
 [Mitsubishi RM-501 Movemaster II Robot Simulator](https://github.com/koppi/rm501/raw/master/doc/rm501.mkv)
