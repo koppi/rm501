@@ -1566,7 +1566,7 @@ int main(int argc, char** argv) {
 	exit(EXIT_FAILURE);
       }
       
-      char* sdl_font_file = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSansMono.ttf";
+      char* sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
       
       sdl_font = TTF_OpenFont(sdl_font_file, 15);
       
