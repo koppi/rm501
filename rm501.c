@@ -31,7 +31,7 @@
   #define HAVE_PNG         // working, requires HAVE_SDL
   #define ENABLE_FPS_LIMIT // working, requires HAVE_SDL
   #ifdef ENABLE_FPS_LIMIT
-    #define DEFAULT_FPS 50
+    #define DEFAULT_FPS 30
   #endif
 #endif
 
