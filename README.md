@@ -60,9 +60,10 @@ $ ./rm501 -s # start program with SDL GUI
   * ESC: quit the simulator,
   * Q, W, E, R, T: increase the joint values for waist, shoulder, elbow, pitch and roll,
   * A, S, D, F, G: decrease the joint values for waist, shoulder, elbow, pitch and roll,
-  * I, K, and direction keys (on your right-hand side): control the end-effector position.
-  * C, V: move end effector in a circle in the x-y plane, reset circle position.
-  * N, K: move to 'nest' position, move to the 'all link horizontal' home position.
+  * I, K, and direction keys (on your right-hand side): control the end-effector position,
+  * C, V: move end effector in a circle in the x-y plane, reset circle position,
+  * N, H: move to 'nest' position, move to the 'all link horizontal' home position,
+  * O, L: open, close tool.
   
     Hold the shift key to move the joints in parallel, not linearly.
   

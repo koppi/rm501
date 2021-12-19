@@ -52,9 +52,10 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <stdlib.h> // EXIT_SUCCESS
-#include <string.h> // memcpy()
-#include <signal.h> // sigaction(), sigsuspend(), sig*()
+#include <stdlib.h>  // EXIT_SUCCESS
+#include <stdbool.h> // for bool, true, false
+#include <string.h>  // memcpy()
+#include <signal.h>  // sigaction(), sigsuspend(), sig*()
 #include <math.h>
 
 #ifdef HAVE_ZMQ
@@ -250,6 +251,8 @@ typedef struct {
 #ifdef PROJ3
     int proj3counter;
 #endif
+
+    bool claw;
 
 } bot_t;
 
@@ -886,6 +889,7 @@ void cross(float th, float l) {
         text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "a: %8.2f", rad2deg(r));
         text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "b: %8.2f", rad2deg(p));
         text(15, 10+13*TTF_FontHeight(sdl_font), sdl_font, "c: %8.2f", rad2deg(y));
+	text(15, 10+15*TTF_FontHeight(sdl_font), sdl_font, "%s", bot->claw?"Open":"Closed");
 
         text(width - 370,10, sdl_font, "TOOL"); text_matrix(width - 320, 10, bot->t);
 
@@ -1735,6 +1739,9 @@ int main(int argc, char** argv) {
     if (keys[SDL_SCANCODE_D]) { jog_joint(&bot_fwd, 2, -cnt); }
     if (keys[SDL_SCANCODE_F]) { jog_joint(&bot_fwd, 3, -cnt); }
     if (keys[SDL_SCANCODE_G]) { jog_joint(&bot_fwd, 4, -cnt); }
+
+    if (keys[SDL_SCANCODE_O]) { bot_fwd.claw = true; }
+    if (keys[SDL_SCANCODE_L]) { bot_fwd.claw = false; }
 
     if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
       if (keys[SDL_SCANCODE_LEFT])     { move_tool(&bot_inv, 0, -d); }
