@@ -20,7 +20,7 @@ Untested / unfinished features:
 
 ## Video
 
-[Mitsubishi RM-501 Movemaster II Robot Simulator](https://github.com/koppi/rm501/raw/master/doc/rm501.mkv)
+* [Mitsubishi RM-501 Movemaster II Robot Simulator](https://github.com/koppi/rm501/raw/master/doc/rm501.mkv)
 
 ## Clone, compile and run
 
