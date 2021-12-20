@@ -101,6 +101,6 @@ $ ./rm501 -s # start program with SDL GUI
 
 ## Authors
 
-* [koppi](https://github.com/koppi)
+* [@koppi](https://github.com/koppi)
 
 
