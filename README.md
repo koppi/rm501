@@ -52,7 +52,7 @@ make
 ./rm501 -s # start program with SDL GUI
 ```
 
-– Tested on Debian/Sid and Ubuntu 21.10.
+– Tested on Debian/Sid and Ubuntu 22.04.
 
 ## Control
 
