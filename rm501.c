@@ -515,6 +515,14 @@ void cross(float th, float l) {
 #endif
 
 #ifdef HAVE_SDL
+
+    unsigned int power_two_floor(unsigned int val) {
+        unsigned int power = 2, nextVal = power*2;
+        while((nextVal *= 2) <= val)
+            power*=2;
+        return power*2;
+    }
+
     void text(int x, int y, TTF_Font *font, const char * format, ...) {
         char buffer[256];
         va_list args;
@@ -526,30 +534,60 @@ void cross(float th, float l) {
 
         SDL_Color col = {255, 255, 255};
         SDL_Surface *msg = TTF_RenderText_Blended(font, buffer, col);
-        unsigned tex = 0;
+        GLuint tex;
+        int texture_format;
 
+        glEnable(GL_TEXTURE_2D);
         glGenTextures(1, &tex);
         glBindTexture(GL_TEXTURE_2D, tex);
 
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // Avoid mipmap filtering
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        
+        int w = power_two_floor(msg->w)*2;
+        int h = power_two_floor(msg->h)*2;
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, msg->w, msg->h, 0, GL_BGRA,
-                     GL_UNSIGNED_BYTE, msg->pixels);
+        // Create a surface to the correct size in RGB format, and copy the old image
+        SDL_Surface * s = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000,0x0000ff00,0x000000ff,0xff000000);
+        SDL_BlitSurface(msg, NULL, s, NULL);
+        
+        int colors = s->format->BytesPerPixel;
+        if (colors == 4) { // alpha
+            if (s->format->Rmask == 0x000000ff)
+                texture_format = GL_RGBA;
+            else
+                texture_format = GL_BGRA;
+        } else { // no alpha
+            if (s->format->Rmask == 0x000000ff)
+                texture_format = GL_RGB;
+            else
+                texture_format = GL_BGR;
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, colors, w, h, 0, texture_format,
+                     GL_UNSIGNED_BYTE, s->pixels);
 
         int z = 1;
 
         glBegin(GL_QUADS);
-        glTexCoord2d(0, 0); glVertex3d(x, y, z);
-        glTexCoord2d(1, 0); glVertex3d(x+msg->w, y, z);
-        glTexCoord2d(1, 1); glVertex3d(x+msg->w, y+msg->h, z);
-        glTexCoord2d(0, 1); glVertex3d(x, y+msg->h, z);
+        {
+            glTexCoord2d(0, 0); glVertex3f(x,        y,        z);
+            glTexCoord2d(1, 0); glVertex3f(x + s->w, y,        z);
+            glTexCoord2d(1, 1); glVertex3f(x + s->w, y + s->h, z);
+            glTexCoord2d(0, 1); glVertex3f(x,        y + s->h, z);
+        }
         glEnd();
 
+        glDisable(GL_TEXTURE_2D);
+
         glDeleteTextures(1, &tex);
+        SDL_FreeSurface(s);
         SDL_FreeSurface(msg);
 
         va_end (args);
+
+        
     }
 
     void text_matrix(int x, int y, double m[]) {
