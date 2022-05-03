@@ -25,34 +25,34 @@ Untested / unfinished features:
 ## Clone, compile and run
 
 ```bash
-$ sudo apt -y install git 
-$ git clone https://github.com/koppi/rm501.git
+sudo apt -y install git 
+git clone https://github.com/koppi/rm501.git
 ```
 
 * Required: [OpenGL](https://www.opengl.org/), [SDL2](https://www.libsdl.org/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/)
 * Optional: [ncurses](https://www.gnu.org/software/ncurses/), [libpng](http://www.libpng.org/), [ZeroMQ](http://zeromq.org/), [Eclipse Mosquitto™](https://mosquitto.org/), [LinuxCNC / Machinekit HAL](http://linuxcnc.org/docs/html/hal/tutorial.html)
 
 ```bash
-$ # required packages
-$ sudo apt -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-net-dev
-$ sudo usermod -aG input $USER            # for joystick access
-$ sudo apt -y install fonts-dejavu-core   # for DejaVuSansMono.ttf
-$ # optional packages
-$ sudo apt -y install libncurses-dev      # for console
-$ sudo apt -y install libpng-dev          # for screenshots
-$ sudo apt -y install libzmq5 libzmq3-dev # for ZeroMQ
-$ sudo apt -y install libmosquitto-dev    # for MQTT
+# required packages
+sudo apt -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-net-dev
+sudo usermod -aG input $USER            # for joystick access
+sudo apt -y install fonts-dejavu-core   # for DejaVuSansMono.ttf
+# optional packages
+sudo apt -y install libncurses-dev      # for console
+sudo apt -y install libpng-dev          # for screenshots
+sudo apt -y install libzmq5 libzmq3-dev # for ZeroMQ
+sudo apt -y install libmosquitto-dev    # for MQTT
 ```
 
 Compile and run:
 
 ```bash
-$ cd rm501/
-$ make
-$ ./rm501 -s # start program with SDL GUI
+cd rm501/
+make
+./rm501 -s # start program with SDL GUI
 ```
 
-– Tested on Debian/Sid and Ubuntu 21.10.
+– Tested on Debian/Sid and Ubuntu 22.04.
 
 ## Control
 
