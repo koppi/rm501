@@ -914,16 +914,16 @@ void cross(float th, float l) {
 
         text(15, 10, sdl_font, "AXIS   POS     VEL");
 
-        text(15, 10+1*TTF_FontHeight(sdl_font), sdl_font, "x: %8.2f %8.3f", bot->t[12], bot->cart[0].vel);
-        text(15, 10+2*TTF_FontHeight(sdl_font), sdl_font, "y: %8.2f %8.3f", bot->t[13], bot->cart[1].vel);
-        text(15, 10+3*TTF_FontHeight(sdl_font), sdl_font, "z: %8.2f %8.3f", bot->t[14], bot->cart[2].vel);
+        text(15, 10+1*TTF_FontHeight(sdl_font), sdl_font, "X: %8.2f %8.3f", bot->t[12], bot->cart[0].vel);
+        text(15, 10+2*TTF_FontHeight(sdl_font), sdl_font, "Y: %8.2f %8.3f", bot->t[13], bot->cart[1].vel);
+        text(15, 10+3*TTF_FontHeight(sdl_font), sdl_font, "Z: %8.2f %8.3f", bot->t[14], bot->cart[2].vel);
 
         double r, p, y;
         pmMatRpyConvert(bot->t, &r, &p, &y);
 
-        text(15, 10+5*TTF_FontHeight(sdl_font), sdl_font, "r: %8.2f %8.3f", rad2deg(r), bot->cart[5].vel);
-        text(15, 10+6*TTF_FontHeight(sdl_font), sdl_font, "p: %8.2f %8.3f", rad2deg(p), bot->cart[3].vel);
-        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "y: %8.2f %8.3f", rad2deg(y), bot->cart[4].vel);
+        text(15, 10+5*TTF_FontHeight(sdl_font), sdl_font, "R: %8.2f %8.3f", rad2deg(r), bot->cart[5].vel);
+        text(15, 10+6*TTF_FontHeight(sdl_font), sdl_font, "P: %8.2f %8.3f", rad2deg(p), bot->cart[3].vel);
+        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "Y: %8.2f %8.3f", rad2deg(y), bot->cart[4].vel);
         
         text(15, 10+9*TTF_FontHeight(sdl_font), sdl_font, "GRIP: %s", bot->grip?"Open":"Closed");
 
