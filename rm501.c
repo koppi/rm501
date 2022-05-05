@@ -1395,6 +1395,7 @@ int main(int argc, char** argv) {
       } else if (OPTION_SET("--mqtt", "-m")) {
         do_mqtt = 1;
       } else if (OPTION_SET("--rw", "-w")) {
+        do_mqtt = 1;
         rw_mode = 1;
 #endif
       } else if (OPTION_SET("--verbose", "-x")) {
