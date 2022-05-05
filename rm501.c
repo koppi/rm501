@@ -1606,12 +1606,12 @@ int main(int argc, char** argv) {
       
 #ifdef HAVE_JOYSTICK
       if (SDL_NumJoysticks() < 1) {
-	printf( "Warning: No joysticks connected!\n" );
+          // printf( "Warning: No joysticks connected!\n" );
       } else {
-	joy = SDL_JoystickOpen( 0 );
-	if (joy == NULL) {
-	  printf( "Warning: Unable to open game controller! SDL Error: %s\n", SDL_GetError() );
-	}
+        joy = SDL_JoystickOpen( 0 );
+        if (joy == NULL) {
+            printf( "Warning: Unable to open game controller! SDL Error: %s\n", SDL_GetError() );
+        }
       }
 #endif
 
