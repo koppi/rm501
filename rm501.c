@@ -40,7 +40,7 @@
 //#define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
 //#define HAVE_SOCKET          // unfinished
-//#define HAVE_MOSQUITTO       // unfinished
+//#define HAVE_MQTT            // unfinished
 //#define HAVE_ZMQ             // unfinished
 //#define HAVE_TRAJGEN         // unfinished
 
@@ -62,8 +62,8 @@
 #include <zmq.h>
 #endif
 
-#ifdef HAVE_MOSQUITTO
-#include <mosquitto.h>
+#ifdef HAVE_MQTT
+#include "mqtt_handler.h"
 #endif
 
 #ifdef HAVE_SDL
@@ -157,9 +157,8 @@ int do_net = 0;
 int do_zmq = 0;
 #endif
 
-#ifdef HAVE_MOSQUITTO
-int do_mosquitto = 0;
-struct mosquitto *mosq;
+#ifdef HAVE_MQTT
+int do_mqtt = 0;
 #endif
 
 #ifdef HAVE_TRAJGEN
@@ -1132,12 +1131,6 @@ void cross(float th, float l) {
         }
     }
 
-#ifdef HAVE_MOSQUITTO
-void on_mosquitto_publish(struct mosquitto *mosq, void *userdata, int mid) {
-    // fprintf(stderr, "on_mosquitto_publish()");
-}
-#endif
-
 #ifdef HAVE_SOCKET
 
     int sock_printf(int sock, const char * format, ...) {
@@ -1262,6 +1255,53 @@ void handle_signal(int signal) {
   }
 }
 
+#ifdef HAVE_MQTT
+
+#define RM501_SCALAR 150.0
+
+coord_t bot2coord(bot_t *bot) {
+  // convert bot to coord
+  double r=0, p=0, y=0;
+  pmMatRpyConvert(bot->t, &y, &r, &p);
+  coord_t coord = {
+    bot->t[14]*RM501_SCALAR,
+    bot->t[12]*RM501_SCALAR,
+    bot->t[13]*RM501_SCALAR,
+    rad2deg(p)+90.0,
+    rad2deg(r),//bot_inv.j[4].pos
+    bot->grip
+  };
+  return coord;
+}
+
+void coord2bot(bot_t *bot, coord_t coord) { 
+    // convert coord to bot        
+    bot_t bot_aux = *bot;
+    bot_aux.t[14]=coord.x/RM501_SCALAR;
+    bot_aux.t[12]=coord.y/RM501_SCALAR;
+    bot_aux.t[13]=coord.z/RM501_SCALAR;
+    
+    for(int i=0; i<10; i++) {
+        double r=0, p=0, y=0;
+        pmMatRpyConvert(bot_aux.t, &y, &r, &p);
+        p = rad2deg(p)-90.0;
+        r = rad2deg(r);
+        // pitch
+        rotate_m_axyz(bot_aux.t, coord.pitch-p, sin(deg2rad(bot_aux.j[0].pos)), 0, cos(deg2rad(bot_aux.j[0].pos)));
+        // roll
+        rotate_m_axyz(bot_aux.t, coord.roll-r, 0, 1, 0);
+        
+        kins_inv(&bot_aux);
+        //bot_aux.j[4].pos=r; 
+        //kins_fwd(&bot_aux);
+    }
+
+    bot_aux.grip = coord.grip;
+    // return results
+    *bot = bot_aux;
+}
+#endif
+
 int main(int argc, char** argv) {
   struct sigaction sa;
   sa.sa_handler = &handle_signal;
@@ -1310,13 +1350,14 @@ int main(int argc, char** argv) {
         int do_help = 0;
         int do_version = 0;
         int verbose = 0;
+        int rw_mode =0;
 
         int i = 0;
         while (++i < argc) {
 #define OPTION_SET(longopt,shortopt) (strcmp(argv[i], longopt)==0 || strcmp(argv[i], shortopt)==0)
 #define OPTION_VALUE ((i+1 < argc)?(argv[i+1]):(NULL))
 #define OPTION_VALUE_PROCESSED (i++)
-	  if (OPTION_SET("--help", "-h")) {
+      if (OPTION_SET("--help", "-h")) {
             do_help = 1;
 	  } else if (OPTION_SET("--version", "-v")) {
             do_version = 1;
@@ -1350,12 +1391,14 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--zmq", "-z")) {
 	    do_zmq = 1;
 #endif
-#ifdef HAVE_MOSQUITTO
-          } else if (OPTION_SET("--mqtt", "-m")) {
-            do_mosquitto = 1;
+#ifdef HAVE_MQTT
+      } else if (OPTION_SET("--mqtt", "-m")) {
+        do_mqtt = 1;
+      } else if (OPTION_SET("--rw", "-w")) {
+        rw_mode = 1;
 #endif
-          } else if (OPTION_SET("--verbose", "-x")) {
-            verbose++;
+      } else if (OPTION_SET("--verbose", "-x")) {
+        verbose++;
 	  } else {
 	    fprintf(stderr, "Unknown option: %s\n", argv[i]);
 	    do_help = 1;
@@ -1392,8 +1435,9 @@ int main(int argc, char** argv) {
 #ifdef HAVE_ZMQ
                     "    [-z|--zmq]               ZMQ server mode\n"
 #endif
-#ifdef HAVE_MOSQUITTO
+#ifdef HAVE_MQTT
                     "    [-m|--mqtt]              MQTT client mode\n"
+                    "    [-w|--rw]                MQTT write mode\n"
 #endif
                     "    [-x|--verbose]           Show verbose information\n\n"
                     "    [-h|--help]              Show help information\n\n"
@@ -1436,21 +1480,9 @@ int main(int argc, char** argv) {
 	}
 #endif
 
-#ifdef HAVE_MOSQUITTO
-        if (do_mosquitto) {
-
-          mosquitto_lib_init();
-
-          if (verbose >= 1) {
-            int major, minor, revision;
-            mosquitto_lib_version(&major, &minor, &revision);
-            fprintf(stderr, "Using Mosquitto version %d.%d.%d\n", major, minor, revision);
-          }
-
-          mosq = mosquitto_new("rm501", true, NULL);
-          mosquitto_publish_callback_set(mosq, on_mosquitto_publish);
-          int keepalive = 60;
-          mosquitto_connect(mosq, "localhost", 1883, keepalive);
+#ifdef HAVE_MQTT
+        if (do_mqtt) {
+          mqtt_handler_init();
         }
 #endif
 
@@ -1751,6 +1783,26 @@ int main(int argc, char** argv) {
 #endif
     
     while (!done) {
+#ifdef HAVE_MQTT
+        coord_t coord = bot2coord(&bot_inv);
+        bot_t bot_aux = bot_inv;
+
+        if ( mqtt_periodic_callback(&coord, rw_mode)) {
+          // an update arrived from mqtt
+
+          int try = 100;
+          do {
+            // try to convert multiple times until result is good
+            coord2bot(&bot_aux, coord);
+            
+            bot_fwd = bot_aux;
+            bot_inv = bot_aux;
+            update_model(&bot_fwd, &bot_inv, 1, 1);
+            bot_aux = bot_inv;
+          }
+          while(!coord_equal(coord, bot2coord(&bot_aux), EPSILON) && --try > 0);
+        }
+#endif
 
         static double old_pos[5];
         
@@ -2113,29 +2165,6 @@ int main(int argc, char** argv) {
     }
   }
 #endif
-
-#ifdef HAVE_MOSQUITTO
-  char topic[32];
-  char payload[64];
-
-  if (do_mosquitto) {
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-
-    //printf("%f\n", tv.tv_sec + tv.tv_usec * 0.000001);
-
-    for (i = 0; i < 5; i++) {
-      snprintf(topic,   sizeof topic,   "%s/%d/pos", "rm501", i);
-      snprintf(payload, sizeof payload, "%f %f", tv.tv_sec + tv.tv_usec * 0.000001, bot_fwd.j[i].pos);
-      mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
-
-      snprintf(topic,   sizeof topic,   "%s/%d/vel", "rm501", i);
-      snprintf(payload, sizeof payload, "%f %f", tv.tv_sec + tv.tv_usec * 0.000001, bot_fwd.j[i].vel);
-      mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 0, false);
-    }
-  }
-#endif
   
 #ifdef HAVE_SDL
   if (do_sdl) {
@@ -2197,11 +2226,9 @@ fail1:
 fail0:
 #endif
 
-#ifdef HAVE_MOSQUITTO
-  if (do_mosquitto) {
-    mosquitto_disconnect(mosq);
-    mosquitto_destroy(mosq);
-    mosquitto_lib_cleanup();
+#ifdef HAVE_MQTT
+  if (do_mqtt) {
+    mqtt_handler_close();
   }
 #endif
 

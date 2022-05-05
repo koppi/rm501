@@ -18,16 +18,17 @@ CURSES_LDLIBS := -lcurses
 #ZMQ_CFLAGS := -DHAVE_ZMQ
 #ZMQ_LDLIBS := -l:libzmq.so.5
 
-# comment out to disable Mosquitto functionality
-#MOSQ_CFLAGS := -DHAVE_MOSQUITTO
-#MOSQ_LDLIBS := -lmosquitto
+# comment out to disable Eclipse MQTT functionality
+#MQTT_CFLAGS := -DHAVE_MQTT
+#MQTT_LDLIBS := -lpaho-mqtt3c
+#MQTT_OBJS   := mqtt_handler.o
 
 # comment out to disable trajectory calculation functionality
 TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
 TRAJGEN_LDLIBS :=
 
-CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MOSQ_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall
-LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MOSQ_LDLIBS) $(TRAJGEN_LDLIBS) -lm
+CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall
+LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MQTT_LDLIBS) $(TRAJGEN_LDLIBS) -lm
 LDFLAGS += -Wl,--as-needed
 
 all: rm501
@@ -35,7 +36,7 @@ all: rm501
 %.o: %.c
 	$(CC) -o $@ -c $(CFLAGS) $+
 
-rm501: rm501.o trajgen.o
+rm501: rm501.o trajgen.o $(MQTT_OBJS)
 	$(CC) -o $@ $+ $(LDFLAGS) $(LDLIBS)
 
 rm501.1: rm501

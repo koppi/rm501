@@ -41,7 +41,7 @@ sudo apt -y install fonts-dejavu-core   # for DejaVuSansMono.ttf
 sudo apt -y install libncurses-dev      # for console
 sudo apt -y install libpng-dev          # for screenshots
 sudo apt -y install libzmq5 libzmq3-dev # for ZeroMQ
-sudo apt -y install libmosquitto-dev    # for MQTT
+sudo apt -y install libpaho-mqtt-dev    # for Eclipse MQTT
 ```
 
 Compile and run:
@@ -91,9 +91,9 @@ make
 
   Unfinished (see ```HAVE_ZMQ``` in source code).
 
-* MQ Telemetry Transport via Mosquitto.
+* MQ Telemetry Transport via Eclipse MQTT.
 
-  Partially working (see ```HAVE_MOSQUITTO``` in source code).
+  Partially working (see ```HAVE_MQTT``` in source code).
 
 * Control via LinuxCNC / Machinekit:
 
