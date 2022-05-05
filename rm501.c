@@ -244,6 +244,10 @@ typedef struct {
 #endif
     } j[5]; // joints
 
+    struct cart_s {
+        double vel;
+    } cart[6]; // cartesian coordinates
+
     double t[16];  // tool matrix
     int  err;      // error a to joint number if inverse kinematics fails
     char msg[2048]; // opt. message from inverse kinematics
@@ -252,7 +256,7 @@ typedef struct {
     int proj3counter;
 #endif
 
-    bool claw;
+    bool grip;
 
 } bot_t;
 
@@ -908,29 +912,37 @@ void cross(float th, float l) {
 
         glColor3ub( 25, 200, 25 );
 
-        text(15, 10, sdl_font, "AXIS:  POS:     VEL:");
+        text(15, 10, sdl_font, "AXIS   POS     VEL");
 
+        text(15, 10+1*TTF_FontHeight(sdl_font), sdl_font, "x: %8.2f %8.3f", bot->t[12], bot->cart[0].vel);
+        text(15, 10+2*TTF_FontHeight(sdl_font), sdl_font, "y: %8.2f %8.3f", bot->t[13], bot->cart[1].vel);
+        text(15, 10+3*TTF_FontHeight(sdl_font), sdl_font, "z: %8.2f %8.3f", bot->t[14], bot->cart[2].vel);
+
+        double r, p, y;
+        pmMatRpyConvert(bot->t, &r, &p, &y);
+
+        text(15, 10+5*TTF_FontHeight(sdl_font), sdl_font, "r: %8.2f %8.3f", rad2deg(r), bot->cart[5].vel);
+        text(15, 10+6*TTF_FontHeight(sdl_font), sdl_font, "p: %8.2f %8.3f", rad2deg(p), bot->cart[3].vel);
+        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "y: %8.2f %8.3f", rad2deg(y), bot->cart[4].vel);
+        
+        text(15, 10+9*TTF_FontHeight(sdl_font), sdl_font, "GRIP: %s", bot->grip?"Open":"Closed");
+
+        text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "JOINT ANGLE    VEL");
+        /*
         int i;
         for (i = 0; i < 5; i++) {
             text(15, 10+(i+1)*TTF_FontHeight(sdl_font), sdl_font,
                  "%d: %8.2f %8.3f", i+1, bot->j[i].pos, bot->j[i].vel);
-        }
-
-        text(15, 10+7*TTF_FontHeight(sdl_font), sdl_font, "x: %8.2f", bot->t[12]);
-        text(15, 10+8*TTF_FontHeight(sdl_font), sdl_font, "y: %8.2f", bot->t[13]);
-        text(15, 10+9*TTF_FontHeight(sdl_font), sdl_font, "z: %8.2f", bot->t[14]);
-
-        double r, p, y;
-
-        pmMatRpyConvert(bot->t, &r, &p, &y);
-
-        text(15, 10+11*TTF_FontHeight(sdl_font), sdl_font, "a: %8.2f", rad2deg(r));
-        text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "b: %8.2f", rad2deg(p));
-        text(15, 10+13*TTF_FontHeight(sdl_font), sdl_font, "c: %8.2f", rad2deg(y));
-	text(15, 10+15*TTF_FontHeight(sdl_font), sdl_font, "%s", bot->claw?"Open":"Closed");
-
+        }*/
+        
+        text(15, 10+12*TTF_FontHeight(sdl_font), sdl_font, "%d: %8.2f %8.3f", 1, bot->j[0].pos, bot->j[0].vel);
+        text(15, 10+13*TTF_FontHeight(sdl_font), sdl_font, "%d: %8.2f %8.3f", 2, bot->j[1].pos, bot->j[1].vel);
+        text(15, 10+14*TTF_FontHeight(sdl_font), sdl_font, "%d: %8.2f %8.3f", 3, bot->j[2].pos, bot->j[2].vel);
+        text(15, 10+15*TTF_FontHeight(sdl_font), sdl_font, "%d: %8.2f %8.3f", 4, bot->j[3].pos-90.0, bot->j[3].vel);
+        text(15, 10+16*TTF_FontHeight(sdl_font), sdl_font, "%d: %8.2f %8.3f", 5, bot->j[4].pos, bot->j[4].vel);
+        
         text(width - 370,10, sdl_font, "TOOL"); text_matrix(width - 320, 10, bot->t);
-
+        
         if (strlen(bot->msg)) {
             text(15, height - TTF_FontHeight(sdl_font) * 1.5, sdl_font, bot->msg);
         }
@@ -1746,6 +1758,25 @@ int main(int argc, char** argv) {
             old_pos[i] = bot_fwd.j[i].pos;
         }
 
+        static double old_pos_cart_fwd[6];
+        old_pos_cart_fwd[0] = bot_fwd.t[12];
+        old_pos_cart_fwd[1] = bot_fwd.t[13];
+        old_pos_cart_fwd[2] = bot_fwd.t[14];
+        double y, r, p;
+        pmMatRpyConvert(bot_fwd.t, &y, &r, &p);
+        old_pos_cart_fwd[3] = r;
+        old_pos_cart_fwd[4] = p;
+        old_pos_cart_fwd[5] = y;
+
+        static double old_pos_cart_inv[6];
+        old_pos_cart_inv[0] = bot_inv.t[12];
+        old_pos_cart_inv[1] = bot_inv.t[13];
+        old_pos_cart_inv[2] = bot_inv.t[14];
+        pmMatRpyConvert(bot_inv.t, &y, &r, &p);
+        old_pos_cart_inv[3] = r;
+        old_pos_cart_inv[4] = p;
+        old_pos_cart_inv[5] = y;
+
 #ifdef HAVE_SDL
   if (do_sdl) {
     SDL_PollEvent(&ev);
@@ -1778,8 +1809,8 @@ int main(int argc, char** argv) {
     if (keys[SDL_SCANCODE_F]) { jog_joint(&bot_fwd, 3, -cnt); }
     if (keys[SDL_SCANCODE_G]) { jog_joint(&bot_fwd, 4, -cnt); }
 
-    if (keys[SDL_SCANCODE_O]) { bot_fwd.claw = true; }
-    if (keys[SDL_SCANCODE_L]) { bot_fwd.claw = false; }
+    if (keys[SDL_SCANCODE_O]) { bot_fwd.grip = true; }
+    if (keys[SDL_SCANCODE_L]) { bot_fwd.grip = false; }
 
     if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
       if (keys[SDL_SCANCODE_LEFT])     { move_tool(&bot_inv, 0, -d); }
@@ -2006,6 +2037,22 @@ int main(int argc, char** argv) {
       bot_fwd.j[i].vel = bot_fwd.j[i].pos - old_pos[i];
       bot_inv.j[i].vel = bot_inv.j[i].pos - old_pos[i];
   }
+  // update cartesian velocity values
+  bot_fwd.cart[0].vel = bot_fwd.t[12] - old_pos_cart_fwd[0];
+  bot_fwd.cart[1].vel = bot_fwd.t[13] - old_pos_cart_fwd[1];
+  bot_fwd.cart[2].vel = bot_fwd.t[14] - old_pos_cart_fwd[2];
+  pmMatRpyConvert(bot_fwd.t, &y, &r, &p);
+  bot_fwd.cart[3].vel = r - old_pos_cart_fwd[3];
+  bot_fwd.cart[4].vel = p - old_pos_cart_fwd[4];
+  bot_fwd.cart[5].vel = y - old_pos_cart_fwd[5];
+
+  bot_inv.cart[0].vel = bot_inv.t[12] - old_pos_cart_inv[0];
+  bot_inv.cart[1].vel = bot_inv.t[13] - old_pos_cart_inv[1];
+  bot_inv.cart[2].vel = bot_inv.t[14] - old_pos_cart_inv[2];
+  pmMatRpyConvert(bot_inv.t, &y, &r, &p);
+  bot_inv.cart[3].vel = r - old_pos_cart_inv[3];
+  bot_inv.cart[4].vel = p - old_pos_cart_inv[4];
+  bot_inv.cart[5].vel = y - old_pos_cart_inv[5];
 
 #ifdef HAVE_SDL
   if (do_sdl) {
