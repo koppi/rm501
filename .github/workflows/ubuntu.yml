@@ -20,4 +20,4 @@ jobs:
     - name: install the package
       run: sudo dpkg -i ../rm501*deb
     - name: install package dependencies
-      run: sudo apt -f instal
+      run: sudo apt -f install
