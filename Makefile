@@ -26,6 +26,7 @@ CURSES_LDLIBS := -lcurses
 # comment out to disable trajectory calculation functionality
 TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
 TRAJGEN_LDLIBS :=
+TRAJGEN_OBJS   := trajgen.o
 
 CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall
 LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MQTT_LDLIBS) $(TRAJGEN_LDLIBS) -lm
@@ -36,7 +37,7 @@ all: rm501
 %.o: %.c
 	$(CC) -o $@ -c $(CFLAGS) $+
 
-rm501: rm501.o trajgen.o $(MQTT_OBJS)
+rm501: rm501.o $(MQTT_OBJS) $(TRAJGEN_OBJS)
 	$(CC) -o $@ $+ $(LDFLAGS) $(LDLIBS)
 
 rm501.1: rm501
