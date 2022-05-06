@@ -42,6 +42,7 @@ sudo apt -y install libncurses-dev      # for console
 sudo apt -y install libpng-dev          # for screenshots
 sudo apt -y install libzmq5 libzmq3-dev # for ZeroMQ
 sudo apt -y install libpaho-mqtt-dev    # for Eclipse MQTT
+sudo apt -y install mosquitto           # for Mosquitto MQTT server
 ```
 
 Compile and run:
