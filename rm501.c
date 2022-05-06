@@ -122,8 +122,7 @@ hal_t *hal_pos_data;
 
 #ifdef HAVE_SDL
 int view_mode = 0;
-const int width = 640, height = 480;
-//const int width = 1280, height = 700; // 720
+int width = 640, height = 480;
 TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
@@ -955,13 +954,15 @@ void cross(float th, float l) {
     }
 
     void display(bot_t *bot_fwd, bot_t *bot_inv) {
+        SDL_GetWindowSize(sdl_window, &width, &height);
+        
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClearDepth(1.0);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glLoadIdentity();
-
+        
         if (view_mode == 0) {
             glViewport(0, 0, width, height);
         } else {
@@ -1021,7 +1022,7 @@ void cross(float th, float l) {
 
         draw_hud(bot_inv);
 
-        glFlush();
+        //glFlush();
 
         SDL_GL_SwapWindow(sdl_window);
     }
@@ -1245,6 +1246,28 @@ void cross(float th, float l) {
         infoSurface = NULL;
     }
 #endif
+
+    SDL_Rect toggle_fake_fullscreen(SDL_Rect old_bounds) {
+        if (SDL_GetWindowFlags(sdl_window) & SDL_WINDOW_BORDERLESS) {
+            SDL_SetWindowBordered(sdl_window, SDL_TRUE);
+            SDL_SetWindowSize(sdl_window, old_bounds.w, old_bounds.h);
+            SDL_SetWindowPosition(sdl_window, old_bounds.x, old_bounds.y);
+            return old_bounds;
+        } else {
+            SDL_Rect cur_bounds;
+            SDL_GetWindowPosition(sdl_window, &cur_bounds.x, &cur_bounds.y);
+            SDL_GetWindowSize(sdl_window, &cur_bounds.w, &cur_bounds.h);
+
+            int idx = SDL_GetWindowDisplayIndex(sdl_window);
+            SDL_Rect bounds;
+            SDL_GetDisplayBounds(idx, &bounds);
+            SDL_SetWindowBordered(sdl_window, SDL_FALSE);
+            //SDL_SetWindowPosition(sdl_window, bounds.x, bounds.y);
+            SDL_SetWindowSize(sdl_window, bounds.w, bounds.h);
+            
+            return cur_bounds;
+        }
+}
 #endif
 
 void handle_signal(int signal) {
@@ -1347,14 +1370,17 @@ int main(int argc, char** argv) {
 
 #ifdef HAVE_SDL
         int do_sdl = 0;
+        bool do_fullscreen = false;
 
         SDL_Event ev;
         const Uint8 *keys = SDL_GetKeyboardState(0);
 
         int sdlk_tab_pressed = 0;
 
-        int sdl_flags = SDL_WINDOW_SHOWN;
+        int sdl_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
         SDL_DisplayMode sdl_displaymode;
+
+        SDL_Rect cur_bounds;
 #endif
 	
 #ifdef HAVE_NCURSES
@@ -1364,7 +1390,7 @@ int main(int argc, char** argv) {
         int do_help = 0;
         int do_version = 0;
         int verbose = 0;
-        int rw_mode =0;
+        int rw_mode = 0;
 
         int i = 0;
         while (++i < argc) {
@@ -1377,7 +1403,7 @@ int main(int argc, char** argv) {
             do_version = 1;
 #ifdef HAVE_SDL
 	  } else if (OPTION_SET("--fullscreen", "-f")) {
-	    sdl_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+            do_fullscreen = true;
 	  } else if (OPTION_SET("--sdl", "-s")) {
                 do_sdl = 1;
 #endif
@@ -1696,6 +1722,10 @@ int main(int argc, char** argv) {
       set_window_icon(sdl_window);
       
       SDL_RenderClear(sdl_renderer);
+
+      if (do_fullscreen) {
+          cur_bounds = toggle_fake_fullscreen(cur_bounds);
+      }
       
       SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
       // SDL_GL_SetSwapInterval(1);
@@ -1853,6 +1883,10 @@ int main(int argc, char** argv) {
     if (ev.type == SDL_QUIT ||
       (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE))
       done = 1;
+
+    if (ev.type == SDL_KEYUP && ev.key.keysym.sym == SDLK_F11) {
+        cur_bounds = toggle_fake_fullscreen(cur_bounds);
+    }
     
     if (ev.type == SDL_KEYUP && ev.key.keysym.sym == SDLK_TAB) {
       sdlk_tab_pressed = 0;
