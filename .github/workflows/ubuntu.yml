@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: install devscripts
-      run: sudo apt -y install devscripts
+      run: sudo apt -y install devscripts equivs
     - name: install build dependencies
       run: sudo mk-build-deps -i -t "apt --yes --no-install-recommends"
     - name: build the package
