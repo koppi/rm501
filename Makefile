@@ -19,9 +19,9 @@ SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL
 #ZMQ_LDLIBS := -l:libzmq.so.5
 
 # comment out to disable Eclipse MQTT functionality
-#MQTT_CFLAGS := -DHAVE_MQTT
-#MQTT_LDLIBS := -lpaho-mqtt3c
-#MQTT_OBJS   := mqtt_handler.o
+MQTT_CFLAGS := -DHAVE_MQTT
+MQTT_LDLIBS := -lpaho-mqtt3c
+MQTT_OBJS   := mqtt_handler.o
 
 # comment out to disable trajectory calculation functionality
 TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
