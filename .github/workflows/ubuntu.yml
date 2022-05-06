@@ -14,7 +14,7 @@ jobs:
     - name: install devscripts
       run: sudo apt -y install devscripts equivs
     - name: install build dependencies
-      run: sudo mk-build-deps -i -t "apt --yes --no-install-recommends"
+      run: sudo mk-build-deps --root-cmd sudo -i -t "apt --yes --no-install-recommends"
     - name: build the package
       run: dpkg-buildpackage -b -rfakeroot -us -uc
     - name: install the package
