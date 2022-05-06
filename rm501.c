@@ -1862,8 +1862,8 @@ int main(int argc, char** argv) {
     if (keys[SDL_SCANCODE_F]) { jog_joint(&bot_fwd, 3, -cnt); }
     if (keys[SDL_SCANCODE_G]) { jog_joint(&bot_fwd, 4, -cnt); }
 
-    if (keys[SDL_SCANCODE_O]) { bot_fwd.grip = true; }
-    if (keys[SDL_SCANCODE_L]) { bot_fwd.grip = false; }
+    if (keys[SDL_SCANCODE_O]) { bot_fwd.grip = true; bot_inv.grip = true; }
+    if (keys[SDL_SCANCODE_L]) { bot_fwd.grip = false; bot_inv.grip = false; }
 
     if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT]) {
       if (keys[SDL_SCANCODE_LEFT])     { move_tool(&bot_inv, 0, -d); }
