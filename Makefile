@@ -3,8 +3,8 @@
 PREFIX ?= /usr
 
 # comment out to disable SDL GUI
-SDL_CFLAGS := -DHAVE_SDL $(shell sdl2-config --cflags) $(shell pkg-config --cflags SDL2_ttf)
-SDL_LDLIBS := $(shell sdl2-config --libs)   $(shell pkg-config --libs   SDL2_ttf) -lGL -lGLU -lpng
+SDL_CFLAGS := -DHAVE_SDL $(shell sdl2-config --cflags) $(shell pkg-config --cflags SDL2_ttf SDL2_image)
+SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL2_image) -lGL -lGLU -lpng
 
 # comment out to disable Curses GUI
 CURSES_CLFAGS := -DHAVE_CURSES

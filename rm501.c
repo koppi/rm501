@@ -72,6 +72,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_opengl.h>
+#include <SDL2/SDL_image.h>
 #endif
 
 #ifdef HAVE_NCURSES
@@ -121,7 +122,8 @@ hal_t *hal_pos_data;
 
 #ifdef HAVE_SDL
 int view_mode = 0;
-const int width = 1280, height = 700; // 720
+const int width = 640, height = 480;
+//const int width = 1280, height = 700; // 720
 TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
@@ -1218,6 +1220,18 @@ void cross(float th, float l) {
 #endif
 
 #ifdef HAVE_SDL
+    #include "icons/rm501.cdata"
+    void set_window_icon(SDL_Window *sdl_window) {
+        SDL_RWops * z = SDL_RWFromMem(rm501_png, sizeof(rm501_png));
+        SDL_Surface *sdl_window_icon_surface = IMG_Load_RW(z, 1);
+        if (sdl_window_icon_surface == NULL) {
+            fprintf(stderr, "Error: unable to load icons/rm501.png: %s.\n", SDL_GetError());
+            exit(EXIT_FAILURE);
+        }
+        SDL_SetWindowIcon(sdl_window, sdl_window_icon_surface);
+        SDL_FreeSurface(sdl_window_icon_surface);
+    }
+
 #ifdef HAVE_PNG
     void screenshot(int x, int y, const char * filename) {
         unsigned char pixels[width * height * 6];
@@ -1678,6 +1692,8 @@ int main(int argc, char** argv) {
 				    width, height, sdl_flags);
       
       sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+
+      set_window_icon(sdl_window);
       
       SDL_RenderClear(sdl_renderer);
       
