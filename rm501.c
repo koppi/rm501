@@ -76,7 +76,7 @@
 #endif
 
 #ifdef HAVE_NCURSES
-#include <curses.h>
+#include <ncursesw/curses.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #endif
@@ -2201,7 +2201,7 @@ int main(int argc, char** argv) {
 	      
     move(20,1);
     if (strlen(bot_inv.msg)) {
-      printw(bot_inv.msg);
+      printw("%s", bot_inv.msg);
     } else {
       printw("                             ");
     }

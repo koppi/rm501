@@ -38,7 +38,7 @@ sudo apt -y install mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-image-de
 sudo usermod -aG input $USER            # for joystick access
 sudo apt -y install fonts-dejavu-core   # for DejaVuSansMono.ttf
 # optional packages
-sudo apt -y install libncurses-dev      # for console
+sudo apt -y install libncursesw5-dev    # for console
 sudo apt -y install libpng-dev          # for screenshots
 sudo apt -y install libzmq5 libzmq3-dev # for ZeroMQ
 sudo apt -y install libpaho-mqtt-dev    # for Eclipse MQTT

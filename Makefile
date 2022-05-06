@@ -7,8 +7,8 @@ SDL_CFLAGS := -DHAVE_SDL $(shell sdl2-config --cflags) $(shell pkg-config --cfla
 SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL2_image) -lGL -lGLU -lpng
 
 # comment out to disable Curses GUI
-CURSES_CLFAGS := -DHAVE_CURSES
-CURSES_LDLIBS := -lcurses
+#CURSES_CLFAGS := -DHAVE_NCURSES
+#CURSES_LDLIBS := -lncursesw
 
 # comment out to disable LinuxCNC / Machinekit HAL component functionality
 #HAL_CFLAGS := -DHAVE_HAL -I/usr/include/linuxcnc -DRTAPI -DTHREAD_FLAVOR_ID=RTAPI_POSIX_ID
