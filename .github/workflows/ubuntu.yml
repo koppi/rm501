@@ -11,6 +11,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: install devscripts
+      run: apt -y install devscripts
     - name: install build dependencies
       run: mk-build-deps -i -t "apt --yes --no-install-recommends"
     - name: build the package
