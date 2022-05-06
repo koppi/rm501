@@ -1456,7 +1456,7 @@ int main(int argc, char** argv) {
                     " Where [OPTIONS] are zero or more of the following:\n\n"
 #ifdef HAVE_SDL
                     "    [-s|--sdl]               SDL window mode\n"
-                    "    [-f|--fullscreen]        Fullscreen mode\n"
+                    "    [-f|--fullscreen]        SDL window fullscreen mode\n"
 #endif
 #ifdef HAVE_AUDIO
                     "    [-a|--audio]             Motor motion audio\n"
@@ -1483,7 +1483,9 @@ int main(int argc, char** argv) {
                     "    [-x|--verbose]           Show verbose information\n\n"
                     "    [-h|--help]              Show help information\n\n"
                     "    [-v|--version]           Show version number\n\n"
-                    , argv[0]);
+                    "Report bugs to Jakob Flierl <jakob.flierl@gmail.com>\n"
+                    "Website and manual: https://github.com/koppi/rm501\n"
+                    "\n", argv[0]);
             return EXIT_SUCCESS;
         }
 
