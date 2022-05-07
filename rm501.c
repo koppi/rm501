@@ -39,7 +39,6 @@
 //#define HAVE_HAL             // partially working
 //#define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
-//#define HAVE_SOCKET          // unfinished
 //#define HAVE_MQTT            // unfinished
 //#define HAVE_ZMQ             // unfinished
 //#define HAVE_TRAJGEN         // unfinished
@@ -148,10 +147,6 @@ SDL_Surface *png_shot;
 #ifdef HAVE_JOYSTICK
 SDL_Joystick* joy = NULL;
 const int JOYSTICK_DEAD_ZONE = 2500;
-#endif
-
-#ifdef HAVE_SOCKET
-int do_net = 0;
 #endif
 
 #ifdef HAVE_ZMQ
@@ -1147,92 +1142,6 @@ void cross(float th, float l) {
         }
     }
 
-#ifdef HAVE_SOCKET
-
-    int sock_printf(int sock, const char * format, ...) {
-        char buffer[256];
-        va_list args;
-
-        if (!sock) {
-            return -1;
-        }
-	
-        va_start (args, format);
-        vsnprintf (buffer, 255, format, args);
-
-        int err = write(sock, buffer, strlen(buffer));
-
-        va_end(args);
-
-        return err;
-    }
-
-    void sock_close(int sock) {
-      if (sock) {
-	close(sock);
-      }
-    }
-
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <errno.h>
-
-    typedef struct {
-      int opt;
-      int master_socket, addrlen, new_socket, client_socket[30], max_clients, activity, i, valread, sd;
-      int max_sd;
-      struct sockaddr_in address;
-
-      char buffer[1025];
-      fd_set readfds;
-
-      char *message;
-    } net_t;
-
-    int net_init(net_t *net, int port) {
-      int i;
-      
-      net->opt = 1; // allow multiple connections
-      net->max_clients = 30;
-      net->message = "ECHO Daemon v1.0 \r\n";
-      
-      for (i = 0; i < net->max_clients; i++) {
-	net->client_socket[i] = 0;
-      }
-      
-      if ((net->master_socket = socket(AF_INET , SOCK_STREAM , 0)) == 0) {
-	perror("socket failed");
-	return (EXIT_FAILURE);
-        }
-      
-      if (setsockopt(net->master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&net->opt, sizeof(net->opt)) < 0) {
-	perror("setsockopt");
-	return (EXIT_FAILURE);
-      }
-      
-      net->address.sin_family = AF_INET;
-      net->address.sin_addr.s_addr = INADDR_ANY;
-      net->address.sin_port = htons(port);
-      
-      if (bind(net->master_socket, (struct sockaddr *)&net->address, sizeof(net->address))<0) {
-	perror("bind failed");
-	return (EXIT_FAILURE);
-      }
-      printf("Listening on port %d \n", port);
-      
-      if (listen(net->master_socket, 3) < 0) {
-	perror("listen");
-	return (EXIT_FAILURE);
-      }
-      
-      net->addrlen = sizeof(net->address);
-      
-      return EXIT_SUCCESS;
-    }
-    
-#endif
-
 #ifdef HAVE_SDL
     #include "icons/rm501.cdata"
     void set_window_icon(SDL_Window *sdl_window) {
@@ -1370,11 +1279,6 @@ int main(int argc, char** argv) {
     perror("Error: cannot handle SIGINT");
   }
 
-#ifdef HAVE_SOCKET
-#define PORT 8888
-        net_t net;
-#endif
-
 #ifdef ENABLE_FPS_LIMIT
         unsigned int ft = 0, frames;
 #endif
@@ -1436,10 +1340,6 @@ int main(int argc, char** argv) {
 	  } else if (OPTION_SET("--curses", "-c")) {
 	    do_curses = 1;
 #endif
-#ifdef HAVE_SOCKET
-	  } else if (OPTION_SET("--net", "-n")) {
-	    do_net = 1;
-#endif
 #ifdef HAVE_ZMQ
 	  } else if (OPTION_SET("--zmq", "-z")) {
 	    do_zmq = 1;
@@ -1482,9 +1382,6 @@ int main(int argc, char** argv) {
 #endif
 #ifdef HAVE_TRAJGEN
                     "    [-t|--trajgen-test]      Do trajgen test\n"
-#endif
-#ifdef HAVE_SOCKET
-                    "    [-n|--net]               Network server mode\n"
 #endif
 #ifdef HAVE_ZMQ
                     "    [-z|--zmq]               ZMQ server mode\n"
@@ -1542,12 +1439,6 @@ int main(int argc, char** argv) {
         }
 #endif
 
-#ifdef HAVE_SOCKET
-	if (do_net) {
-	  net_init(&net, 8888);
-	}
-#endif
-
 #ifdef HAVE_NCURSES
 	if (do_curses) {
 	  initscr();
@@ -1581,83 +1472,6 @@ int main(int argc, char** argv) {
 	  wprintw(menubar, "Mitsubishi RM-501 Movemaster II Robot Simulator");
 	  wprintw(messagebar, "Status: DISCONNECTED, OFFLINE");
 	}
-#endif
-    
-#ifdef HAVE_SOCKET
-    if (do_net) {
-      FD_ZERO(&net.readfds);
-      FD_SET(net.master_socket, &net.readfds);
-      net.max_sd = net.master_socket;
-      
-      for ( i = 0 ; i < net.max_clients ; i++) {
-        net.sd = net.client_socket[i];
-      
-	if (net.sd > 0) {
-          FD_SET( net.sd , &net.readfds);
-        }
-      
-      if (net.sd > net.max_sd) {
-        net.max_sd = net.sd;
-      }
-    }
-      
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-      
-    net.activity = select( net.max_sd + 1 , &net.readfds , NULL , NULL , &tv);
-
-    if ((net.activity < 0) && (errno!=EINTR)) {
-      printf("select error");
-    }
-      
-    if (FD_ISSET(net.master_socket, &net.readfds)) {
-      if ((net.new_socket = accept(net.master_socket,
-	  (struct sockaddr *)&net.address, (socklen_t*)&net.addrlen)) < 0) {
-        perror("accept");
-        exit(EXIT_FAILURE);
-      }
-      
-      printf("New connection , socket fd is %d , ip is : %s , port : %d \n",
-        net.new_socket , inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
-      
-      // sock_printf(net.new_socket, "P %ld %ld %ld %ld %ld\n", net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
-      
-      for (i = 0; i < net.max_clients; i++) {
-        if (net.client_socket[i] == 0) {
-          net.client_socket[i] = net.new_socket;
-          printf("Adding to list of sockets as %d\n" , i);
-      
-          break;
-        }
-      }
-    }
-      
-    for (i = 0; i < net.max_clients; i++) {
-      net.sd = net.client_socket[i];
-      
-      if (FD_ISSET( net.sd , &net.readfds)) {
-        if ((net.valread = read( net.sd , net.buffer, 1024)) == 0) { // check disconnect
-          getpeername(net.sd , (struct sockaddr*)&net.address , (socklen_t*)&net.addrlen);
-          printf("Host disconnected , ip %s , port %d \n",
-            inet_ntoa(net.address.sin_addr) , ntohs(net.address.sin_port));
-      
-          close(net.sd);
-          net.client_socket[i] = 0;
-        } else {
-          net.buffer[net.valread] = '\0';
-          send(net.sd , net.buffer , strlen(net.buffer) , 0 );
-        }
-      }
-    }
-      
-    for (i = 0; i < net.max_clients; i++) {
-      net.sd = net.client_socket[i];
-      
-      // sock_printf(net.sd, "P %ld %ld %ld %ld %ld\n",
-      // net_bot.step[0], net_bot.step[1], net_bot.step[2], net_bot.step[3], net_bot.step[4]);
-    }
-  }
 #endif
 
 #ifdef HAVE_SPACENAV

@@ -6,7 +6,7 @@
 #define QOS         1
 #define TIMEOUT     10000L
 
-#define MIN_DELTA_T 0.01 // seconds
+#define MIN_DELTA_T 0.005 // seconds
 #define EPSILON 1       // min error
 
 typedef struct {

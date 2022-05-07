@@ -15,7 +15,6 @@ Untested / unfinished features:
 
  * [Stefan Wilhelm's trajectory planner](http://atwillys.de/),
  * [ncurses](https://www.gnu.org/software/ncurses/) UI,
- * control from network via [Internet socket](https://en.wikipedia.org/wiki/Internet_socket),
  * control from [LinuxCNC](http://www.linuxcnc.org/) or [Machinekit](http://www.machinekit.io/) via [HAL](http://linuxcnc.org/docs/html/hal/intro.html).
 
 ## Demo videos
@@ -77,18 +76,6 @@ make
   
   see ```HAVE_JOYSTICK``` in source code.
   
-* Control via network:
-
-  ```bash
-  $ socat READLINE,history=$HOME/.rm501_history TCP:127.0.0.1:8888,crlf
-  ```
-  or
-  ```bash
-  $ nc localhost 8888 # if the above command does not work for you.
-  ```
-
-  Unfinished (see ```HAVE_SOCKET``` in source code).
-
 * Control via ØMQ
 
   Unfinished (see ```HAVE_ZMQ``` in source code).
