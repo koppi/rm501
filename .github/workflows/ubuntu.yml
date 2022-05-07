@@ -11,13 +11,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: install devscripts
-      run: sudo apt -y install devscripts equivs
-    - name: install build dependencies
-      run: sudo mk-build-deps --install debian/control
+
+     name: install devscripts
+      run: |
+        sudo apt update
+        sudo apt full-upgrade -y                                                
+        sudo DEBIAN_FRONTEND=noninteractive apt -qq -y install devscripts equivs lintian
+        mk-build-deps -i -s sudo -t "apt --yes --no-install-recommends"
+                                                                                
     - name: build the package
       run: dpkg-buildpackage -b -rfakeroot -us -uc
+
     - name: install the package
       run: sudo dpkg -i ../rm501*deb
+
     - name: install package dependencies
       run: sudo apt -f install
+
+    - name: run lintian
+      run: lintian ../rm501*deb | lintian-info
