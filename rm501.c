@@ -849,11 +849,24 @@ void cross(float th, float l) {
         cube (1.0, wire);
         glPopMatrix();
 
-        glDisable (GL_LIGHTING);
-        glDisable (GL_COLOR_MATERIAL);
-
         glTranslatef (0, -bot->d5, 0);
 
+        double grip = bot->grip ? 0.25 : 0.05;
+
+        glPushMatrix();
+        glTranslatef (grip, 0.0, 0.0);
+        glScalef (0.1, 0.4, 0.25);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef (-grip, 0.0, 0.0);
+        glScalef (0.1, 0.4, 0.25);
+        cube (1.0, wire);
+        glPopMatrix();
+
+        glDisable (GL_LIGHTING);
+        glDisable (GL_COLOR_MATERIAL);
         cross(4, 0.5);
 
         glPopMatrix();
