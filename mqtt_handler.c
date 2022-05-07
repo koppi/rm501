@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/time.h>
 #include <stdbool.h>
 #include <math.h>
 #include <unistd.h>
@@ -18,7 +19,7 @@ MQTTClient_message pubmsg = MQTTClient_message_initializer;
 MQTTClient_deliveryToken token;
 int rc;
 
-char incoming_message[50] = "";
+char incoming_message[64] = "";
 char incoming_flag = 0;
 
 pthread_mutex_t incoming_mutex;
@@ -58,12 +59,12 @@ bool coord_equal(coord_t c1, coord_t c2, float epsilon) {
  * @brief Handle lost connection
  */
 void connection_lost_callback() {
-    fprintf(stderr, "\nConnectin lost");
+    fprintf(stderr, "\nConnectin lost\n");
     while(1) {
         sleep(5);
-        printf("\nTrying to reconnect");
+        fprintf(stderr, "\nTrying to reconnect\n");
         if (MQTTClient_connect(client, &conn_opts) == MQTTCLIENT_SUCCESS) {
-            printf("\nConnection re-established");
+            fprintf(stderr, "\nConnection re-established\n");
             MQTTClient_subscribe(client, TOPIC, QOS);
             break;
         }
@@ -91,7 +92,7 @@ void mqtt_handler_init() {
     rc = MQTTClient_setCallbacks(client, NULL, connection_lost_callback, subscribe_callback, NULL);
 
     if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
-        printf("Failed to connect, return code %d\n", rc);
+        fprintf(stderr, "Error: failed to connect to '%s', return code %d\n", ADDRESS, rc);
         exit(-1);
     }
 
@@ -148,7 +149,6 @@ int mqtt_periodic_callback(coord_t* coord, bool allowPub) {
             publish_cordinate(last_coord);
         }
     }
-    
 
     //check subscription
     //take mutex
@@ -159,14 +159,16 @@ int mqtt_periodic_callback(coord_t* coord, bool allowPub) {
 
         coord_t aux;
         char grip = 0;
+        double time;
+        
         //decode the message
-        sscanf(incoming_message, "%f, %f, %f, %f, %f, %c",
-                &aux.x, &aux.y, &aux.z, &aux.pitch, &aux.roll, &grip);
+        sscanf(incoming_message, "%lf %f %f %f %f %f %c",
+               &time, &aux.x, &aux.y, &aux.z, &aux.pitch, &aux.roll, &grip);
         aux.grip = (grip=='C') ? 0 : 1;
 
         //only apply if movement is significant
         if (!coord_equal(last_coord, aux, EPSILON) ){
-            printf("\nApply    :%s", incoming_message);
+            printf("\nApply    : '%s'\n", incoming_message);
             *coord = aux; //apply coordinates
             last_coord = aux; //remember coordinates
             ret_flag = 1; //notify update         
@@ -181,12 +183,16 @@ int mqtt_periodic_callback(coord_t* coord, bool allowPub) {
 }
 
 void publish_cordinate(coord_t c) {
-    char message[50];
-    snprintf(message, sizeof(message),
-            "%+.1f, %+.1f, %+.1f, %+.1f, %+.1f, %c",
-            c.x, c.y, c.z, c.pitch, c.roll, c.grip?'O':'C');
+    char message[64];
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
 
-    fprintf(stderr, "\npublish:  %s", message);
+    snprintf(message, sizeof(message),
+            "%lf %+.1f %+.1f %+.1f %+.1f %.1f %c",
+             tv.tv_sec + tv.tv_usec * 0.000001,
+             c.x, c.y, c.z, c.pitch, c.roll, c.grip?'O':'C');
+
+    fprintf(stderr, "\npublish:  '%s'\n", message);
 
     // Publish message
     pubmsg.payload = message;
@@ -207,7 +213,7 @@ int subscribe_callback(void* context, char* topicName, int topicLen, MQTTClient_
     incoming_message[m->payloadlen] = '\0'; // terminate string
     incoming_flag = 1;
 
-    fprintf(stderr, "\nsubscribe:%s", incoming_message);
+    fprintf(stderr, "\nsubscribe: '%s'\n", incoming_message);
 
     // release mutex
     pthread_mutex_unlock(&incoming_mutex);
