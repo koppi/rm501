@@ -11,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-     name: install devscripts
+    - name: install devscripts
       run: |
         sudo apt update
         sudo apt full-upgrade -y                                                
