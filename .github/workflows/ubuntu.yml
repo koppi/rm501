@@ -57,7 +57,7 @@ jobs:
     - name: upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: debian-${{ matrix.target }}
+        name: ubuntu-${{ matrix.target }}
         if-no-files-found: error
         path: |
           *.buildinfo
