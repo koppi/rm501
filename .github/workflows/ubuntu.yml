@@ -65,5 +65,10 @@ jobs:
           *.dsc
           *.tar.*
           *.deb
+          ../*.buildinfo
+          ../*.changes
+          ../*.dsc
+          ../*.tar.*
+          ../*.deb
 
           
