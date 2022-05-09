@@ -55,7 +55,7 @@ jobs:
       run: lintian ../rm501*deb | lintian-info
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: debian-${{ matrix.target }}
         if-no-files-found: error
@@ -65,10 +65,10 @@ jobs:
           *.dsc
           *.tar.*
           *.deb
-          ../*.buildinfo
-          ../*.changes
-          ../*.dsc
-          ../*.tar.*
-          ../*.deb
+          ${{ github.workspace }}/*.buildinfo
+          ${{ github.workspace }}/*.changes
+          ${{ github.workspace }}/*.dsc
+          ${{ github.workspace }}/*.tar.*
+          ${{ github.workspace }}/*.deb
 
           
