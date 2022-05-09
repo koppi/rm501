@@ -64,5 +64,6 @@ jobs:
           *.changes
           *.dsc
           *.tar.*
+          *.deb
 
           
