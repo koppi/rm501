@@ -65,10 +65,10 @@ jobs:
           *.dsc
           *.tar.*
           *.deb
-          ${{ github.workspace }}/../*.buildinfo
-          ${{ github.workspace }}/../*.changes
-          ${{ github.workspace }}/../*.dsc
-          ${{ github.workspace }}/../*.tar.*
-          ${{ github.workspace }}/../*.deb
+          ${{ github.workspace }}/**/*.buildinfo
+          ${{ github.workspace }}/**/*.changes
+          ${{ github.workspace }}/**/*.dsc
+          ${{ github.workspace }}/**/*.tar.*
+          ${{ github.workspace }}/**/*.deb
 
           
