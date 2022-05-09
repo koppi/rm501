@@ -35,18 +35,18 @@ jobs:
         VERSION="$(git describe --tags | sed -e "s/^v//" -e "s/-/+git/")"
         dch --create \
             --distribution ${TARGET} \
-            --package raft \
+            --package rm501 \
             --newversion ${VERSION}~${TARGET}1 \
             "Automatic build from Github"
         debuild -S -sa -us -uc -d
                                                                                 
-    - name: build the package
+    - name: build binary package
       run: dpkg-buildpackage -b -rfakeroot -us -uc
 
-    - name: install the package
+    - name: install binary package
       run: sudo dpkg -i ../rm501*deb
 
-    - name: install package dependencies
+    - name: install binary package dependencies
       run: sudo apt -f install
 
     - name: run lintian
