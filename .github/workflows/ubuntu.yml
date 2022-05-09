@@ -27,7 +27,7 @@ jobs:
         mk-build-deps -i -s sudo -t "apt --yes --no-install-recommends"
 
     - name: build source package
-       env:
+      env:
         DEBFULLNAME: "Github Actions"
         DEBEMAIL: "jakob.flierl@gmail.com"
         TARGET: ${{ matrix.target }}
