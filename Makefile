@@ -64,7 +64,7 @@ uninstall:
 	rm $(INSTALL_PREFIX)$(PREFIX)/share/applications/$(BIN).desktop
 
 clean:
-	rm -f *~ *.o *.d $(BIN)
+	rm -f *~ $(OBJS) $(DEPS) $(BIN)
 
 pull:
 	git pull origin master --rebase
