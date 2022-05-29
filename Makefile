@@ -1,3 +1,4 @@
+BIN := rm501
 
 # install prefix either /usr or /usr/local on most unix systems
 PREFIX ?= /usr
@@ -32,33 +33,38 @@ CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFL
 LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MQTT_LDLIBS) $(TRAJGEN_LDLIBS) -lm
 LDFLAGS += -Wl,--as-needed
 
-all: rm501
+OBJS     = $(BIN).o $(MQTT_OBJS) $(TRAJGEN_OBJS)
+
+all: $(BIN)
+
+DEPS := $(OBJS:.o=.d)
+-include $(DEPS)
 
 %.o: %.c
-	$(CC) -o $@ -c $(CFLAGS) $+
+	$(CC) $(CFLAGS) -MD -c -o $@ $<
 
-rm501: rm501.o $(MQTT_OBJS) $(TRAJGEN_OBJS)
+$(BIN): $(OBJS)
 	$(CC) -o $@ $+ $(LDFLAGS) $(LDLIBS)
 
-rm501.1: rm501
+$(BIN).1: $(BIN)
 	help2man -N ./$+ > $@
 
-install: rm501
-	strip rm501
+install: $(BIN)
+	strip $(BIN)
 	mkdir -p $(INSTALL_PREFIX)$(PREFIX)/bin
-	install -m 0755 rm501         $(INSTALL_PREFIX)$(PREFIX)/bin
+	install -m 0755 $(BIN)        $(INSTALL_PREFIX)$(PREFIX)/bin
 	mkdir -p $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps
-	install -m 0664 rm501.png     $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps
+	install -m 0664 $(BIN).png     $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps
 	mkdir -p $(INSTALL_PREFIX)$(PREFIX)/share/applications
-	install -m 0664 rm501.desktop $(INSTALL_PREFIX)$(PREFIX)/share/applications
+	install -m 0664 $(BIN).desktop $(INSTALL_PREFIX)$(PREFIX)/share/applications
 
 uninstall:
-	rm $(INSTALL_PREFIX)$(PREFIX)/bin/rm501
-	rm $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps/rm501.png
-	rm $(INSTALL_PREFIX)$(PREFIX)/share/applications/rm501.desktop
+	rm $(INSTALL_PREFIX)$(PREFIX)/bin/$(BIN)
+	rm $(INSTALL_PREFIX)$(PREFIX)/share/icons/hicolor/512x512/apps/$(BIN).png
+	rm $(INSTALL_PREFIX)$(PREFIX)/share/applications/$(BIN).desktop
 
 clean:
-	rm -f *.o rm501
+	rm -f *~ *.o *.d $(BIN)
 
 pull:
 	git pull origin master --rebase
