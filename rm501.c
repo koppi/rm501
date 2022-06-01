@@ -35,7 +35,7 @@
   #endif
 #endif
 
-#define HAVE_SPACENAV        // working
+//#define HAVE_SPACENAV        // working
 //#define HAVE_HAL             // partially working
 //#define HAVE_NCURSES         // unfinished
 //#define HAVE_SERIAL          // unfinished
@@ -1026,13 +1026,9 @@ void cross(float th, float l) {
             glMatrixMode(GL_PROJECTION);
         }
 
-        glPopMatrix();
+        //glPopMatrix();
 
         draw_hud(bot_inv);
-
-        //glFlush();
-
-        SDL_GL_SwapWindow(sdl_window);
     }
 #endif
 
@@ -1521,8 +1517,13 @@ int main(int argc, char** argv) {
 	fprintf(stderr, "Unable to initialise SDL_ttf.\n");
 	exit(EXIT_FAILURE);
       }
-      
-      char* sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
+
+      char* sdl_font_file;
+#ifdef __HAIKU__
+      sdl_font_file = "/Haiku/system/data/fonts/ttfonts/DejaVuSansMono.ttf";
+#else
+      sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
+#endif
       
       sdl_font = TTF_OpenFont(sdl_font_file, 15);
       
