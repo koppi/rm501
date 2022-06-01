@@ -1521,6 +1521,8 @@ int main(int argc, char** argv) {
       char* sdl_font_file;
 #ifdef __HAIKU__
       sdl_font_file = "/Haiku/system/data/fonts/ttfonts/DejaVuSansMono.ttf";
+#elifdef __FreeBSD__
+      sdl_font_file = "/usr/local/share/fonts/dejavu/DejaVuSansMono.ttf";
 #else
       sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
 #endif
