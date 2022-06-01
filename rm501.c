@@ -652,7 +652,7 @@ void cross(float th, float l) {
     }
 
     void draw_bot(int wire, bot_t *bot) {
-        glPushMatrix();
+        glPushMatrix(); // 1
 
         glTranslatef (0.0, bot->d1, 0.0);
 
@@ -668,19 +668,19 @@ void cross(float th, float l) {
 
         glColor3f(0.25, 0.25, 0.25);
 
-        glPushMatrix();
+        glPushMatrix(); // 2
         glTranslatef (-0.5, -1.875, 0);
         glScalef (2, 0.75, 2);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 1
 
-        glPushMatrix();
+        glPushMatrix(); // 2
         glTranslatef (0, -1.75, 0);
         glScalef (1-0.05, 1.0-0.05, 1.25-0.05);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 1
 
-        glPushMatrix();
+        glPushMatrix(); // 2
         glTranslatef (0.0, -1.175 - 0.65 / 2, 0);
         glRotatef (-90, 1, 0, 0);
         glScalef (1.0, 1.0, 1.0);
@@ -688,54 +688,54 @@ void cross(float th, float l) {
 
         cylinder(wire, 0.35, 0.35, 0.65, 16, 1);
 
-        glPopMatrix();
+        glPopMatrix(); // 1
 
         // link2 - body
 
         glColor3f(1.0, 0.44, 0.176);
 
-        glPushMatrix();
+        glPushMatrix(); // 2
         glTranslatef (0, 0.0, 0.0);
         glRotatef (bot->j[0].pos, 0.0, 1.0, 0.0);
         glTranslatef (0, 0.0, 0.0);
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (-0.75, -0.45, 0.0);
         glScalef (2.5, 0.9, 1.2);
         cube (1.001, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glRotatef (14, 0.0, 0.0, 1.0);
         glTranslatef (-0.975, 0.05, 0.0);
         glScalef (1.9, 0.9, 1.2);
         cube (0.999, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (0.0, 0, -1.2/2);
         glRotatef (-90, 0.0, 0.0, 1.0);
         glScalef (1.0, 1.0, 1.0);
         cylinder(wire, 0.5, 0.5, 1.2, 16, 1);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         if (!wire) {
-            glPushMatrix();
+            glPushMatrix(); // 3
             glTranslatef (0.0, 0, -1.4/2);
             glRotatef (-90, 0.0, 0.0, 1.0);
             glScalef (1.0, 1.0, 1.0);
             cylinder(wire, 0.15, 0.15, 1.4, 16, 1);
-            glPopMatrix();
+            glPopMatrix(); // 2
         }
 
         glColor3f(1.0, 0.44, 0.176);
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (0.0, 0, -bot->d5/2);
         glRotatef (-90, 0.0, 0.0, 1.0);
         glScalef (1.0, 1.0, 1.0);
         cylinder(wire, 0.35, 0.35, bot->d5, 16, 1);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         // link3 - upperarm
 
@@ -743,40 +743,40 @@ void cross(float th, float l) {
 
         glRotatef (bot->j[1].pos, 0.0, 0.0, 1.0);
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (1.1, 0.0, 0.0);
         glScalef (bot->a2, 1.0, 1.0);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         if (!wire) {
-            glPushMatrix();
+            glPushMatrix(); // 3
             glTranslatef (0, 0, -0.5);
             glRotatef (-90, 0.0, 0.0, 1.0);
             glScalef (1.0, 1.0, 1.0);
             cylinder(wire, 0.5, 0.5, 1, 16, 1);
-            glPopMatrix();
+            glPopMatrix(); // 2
 
-            glPushMatrix();
+            glPushMatrix(); // 3
             glTranslatef (bot->a2, 0, -0.5);
             glRotatef (-90, 0.0, 0.0, 1.0);
             glScalef (1.0, 1.0, 1.0);
             cylinder(wire, 0.5, 0.5, 1, 16, 1);
-            glPopMatrix();
+            glPopMatrix(); // 2
 
-            glPushMatrix();
+            glPushMatrix(); // 3
             glTranslatef (bot->a2, 0, -1.1/2);
             glRotatef (-90, 0.0, 0.0, 1.0);
             glScalef (1.0, 1.0, 1.0);
             cylinder(wire, 0.25, 0.25, 1.1, 16, 1);
-            glPopMatrix();
+            glPopMatrix(); // 2
 
-            glPushMatrix();
+            glPushMatrix(); // 3
             glTranslatef (bot->a2, 0, -1.2/2);
             glRotatef (-90, 0.0, 0.0, 1.0);
             glScalef (1.0, 1.0, 1.0);
             cylinder(wire, 0.15, 0.15, 1.2, 16, 1);
-            glPopMatrix();
+            glPopMatrix(); // 2
         }
 
         // link4 - forearm
@@ -784,25 +784,25 @@ void cross(float th, float l) {
         glTranslatef(bot->a2,0,0);
         glRotatef (bot->j[2].pos, 0.0, 0.0, 1.0);
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (0.6, 0.0, 0.0);
         glScalef (1.2, 0.8, 0.9);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (0, 0, -0.45);
         glRotatef (-90, 0.0, 0.0, 1.0);
         glScalef (1.0, 1.0, 1.0);
         cylinder(wire, 0.4, 0.4, 0.9, 16, 1);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (1.2, 0, -0.45);
         glRotatef (-90, 0.0, 0.0, 1.0);
         glScalef (1.0, 1.0, 1.0);
         cylinder(wire, 0.4, 0.4, 0.9, 16, 1);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         // link5 - wrist pitch
 
@@ -811,11 +811,11 @@ void cross(float th, float l) {
         glTranslatef(bot->a3,0,0);
         glRotatef (bot->j[3].pos, 0.0, 0.0, 1.0);
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (0, 0, -0.6);
         glRotatef (-90, 0.0, 0.0, 1.0);
         cylinder(wire, 0.3, 0.3, 1.2, 22, 1);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         glColor3f(0.5, 0.5, 0.5);
 
@@ -825,48 +825,48 @@ void cross(float th, float l) {
 
         glRotatef (bot->j[4].pos, 0.0, 1.0, 0.0);
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glRotatef (90, 1.0, 0.0, 0.0);
         cylinder(wire, 0.13, 0.13, 0.5, 22, 1);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         glColor3f(0.15, 0.15, 0.15);
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (0.0, -0.7, 0.0);
         glScalef (0.5, 0.4, 0.4);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (0.0, -1.02, 0.0);
         glScalef (0.8, 0.25, 0.4);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         glTranslatef (0, -bot->d5, 0);
 
         double grip = bot->grip ? 0.25 : 0.05;
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (grip, 0.0, 0.0);
         glScalef (0.1, 0.4, 0.25);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
-        glPushMatrix();
+        glPushMatrix(); // 3
         glTranslatef (-grip, 0.0, 0.0);
         glScalef (0.1, 0.4, 0.25);
         cube (1.0, wire);
-        glPopMatrix();
+        glPopMatrix(); // 2
 
         glDisable (GL_LIGHTING);
         glDisable (GL_COLOR_MATERIAL);
         cross(4, 0.5);
 
-        glPopMatrix();
+        glPopMatrix(); // 1
 
-        glPopMatrix();
+        glPopMatrix(); // 0
     }
 
     void scene(bot_t *bot_fwd, bot_t *bot_inv) {
@@ -1026,7 +1026,7 @@ void cross(float th, float l) {
             glMatrixMode(GL_PROJECTION);
         }
 
-        //glPopMatrix();
+        glPopMatrix();
 
         draw_hud(bot_inv);
     }
