@@ -1518,15 +1518,15 @@ int main(int argc, char** argv) {
 	exit(EXIT_FAILURE);
       }
 
-      char* sdl_font_file;
-#ifdef (__HAIKU__)
+      char* sdl_font_file = NULL;
+#if defined (__HAIKU__)
       sdl_font_file = "/Haiku/system/data/fonts/ttfonts/DejaVuSansMono.ttf";
-#elifdef (__FreeBSD__)
+#elif defined (__FreeBSD__)
       sdl_font_file = "/usr/local/share/fonts/dejavu/DejaVuSansMono.ttf";
-#elifdef (__linux__)
+#elif defined (__linux__)
       sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
 #else
-      #error "Please set your font path in the source code."
+      #warning "Please set your font path in the source code."
 #endif
       
       sdl_font = TTF_OpenFont(sdl_font_file, 15);
