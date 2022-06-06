@@ -49,6 +49,8 @@
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj3/5463-Project-3-FA2015.pdf
 #define PROJ3
 
+#define _USE_MATH_DEFINES 1
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>  // EXIT_SUCCESS
@@ -67,6 +69,7 @@
 
 #ifdef HAVE_SDL
 #include <GL/glu.h>
+#include <GL/glext.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -183,9 +186,9 @@ double randpos(double max) {
   return roundd(max*((rnd()*2)-1), 2);
 }
 
-void tg_echk (unsigned errno) {
-  if (errno) {
-    fprintf(stderr, "tg error: %s\n", trajgen_errstr(tg_tg.last_error.errno, tg_err_str, 1024));
+void tg_echk (unsigned errnom) {
+  if (errnom) {
+    fprintf(stderr, "tg error: %s\n", trajgen_errstr(tg_tg.last_error.errnom, tg_err_str, 1024));
     exit(1); //XXX
   }
 }
@@ -377,7 +380,7 @@ int pmMatRpyConvert(double m[], double *r, double *p, double *y) {
     return 0;
 }
 
-void kins_fwd(bot_t *bot) {
+int kins_fwd(bot_t *bot) {
     double tr1 = deg2rad(bot->j[0].pos);
     double tr2 = deg2rad(bot->j[1].pos);
     double tr3 = deg2rad(bot->j[2].pos);
@@ -421,7 +424,7 @@ void kins_fwd(bot_t *bot) {
     bot->t[15] = 1;
 }
 
-void kins_inv(bot_t* bot) {
+int kins_inv(bot_t* bot) {
 
     double nx = -bot->t[0], ny =  bot->t[2];
     double ox =  bot->t[8], oy = -bot->t[10];
@@ -1123,7 +1126,7 @@ void cross(float th, float l) {
 
 #endif
 
-    void update_model(bot_t *bot_fwd, bot_t* bot_inv, int do_kins_fwd, int do_kins_inv) {
+    int update_model(bot_t *bot_fwd, bot_t* bot_inv, int do_kins_fwd, int do_kins_inv) {
         if (do_kins_inv) {
             kins_inv(bot_inv);
             if (bot_inv->err == 0) {
@@ -1189,8 +1192,8 @@ void cross(float th, float l) {
 #endif
 
 void handle_signal(int signal) {
+#ifndef __MINGW32__
   sigset_t pending;
-
   // Find out which signal we're handling
   switch (signal) {
   case SIGHUP:
@@ -1208,6 +1211,7 @@ void handle_signal(int signal) {
   }
   if (sigismember(&pending, SIGUSR1)) {
   }
+#endif
 }
 
 #ifdef HAVE_MQTT
@@ -1258,6 +1262,8 @@ void coord2bot(bot_t *bot, coord_t coord) {
 #endif
 
 int main(int argc, char** argv) {
+  
+#ifndef __MINGW32__
   struct sigaction sa;
   sa.sa_handler = &handle_signal;
   sa.sa_flags = SA_RESTART;
@@ -1274,6 +1280,7 @@ int main(int argc, char** argv) {
   if (sigaction(SIGINT, &sa, NULL) == -1) {
     perror("Error: cannot handle SIGINT");
   }
+#endif
 
 #ifdef ENABLE_FPS_LIMIT
         unsigned int ft = 0, frames;
@@ -1525,6 +1532,8 @@ int main(int argc, char** argv) {
       sdl_font_file = "/usr/local/share/fonts/dejavu/DejaVuSansMono.ttf";
 #elif defined (__linux__)
       sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
+#elif defined (__MINGW32__)
+      sdl_font_file = "doc/DejaVuSansMono.ttf";
 #else
       #warning "Please set your font path in the source code."
 #endif
