@@ -1,19 +1,8 @@
-name: CI CMake
+name: windows
 
 env:
   CMAKE_BUILD_TYPE: Release
   CMAKE_GENERATOR: Ninja
-
-on:
-  push:
-  - "**/CMakeLists.txt"
-  - "**.cmake"
-  - "**.cmake.in"
-  - "**.c"
-  - "**.h"
-  - "**.h.in"
-  - ".github/workflows/ci_cmake.yml"
-  pull_request:
 
 jobs:
 
