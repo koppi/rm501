@@ -11,8 +11,8 @@ add_definitions(-DHAVE_SDL)
 set(SOURCES rm501.c)
 
 find_package(SDL2 CONFIG REQUIRED)
-find_package(SDLTTF REQUIRED)
-find_package(SDLIMAGE REQUIRED)
+find_package(SDL2TTF REQUIRED)
+find_package(SDL2IMAGE REQUIRED)
 find_package(OpenGL REQUIRED COMPONENTS OpenGL)
 find_package(GLUT REQUIRED)
 
