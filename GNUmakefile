@@ -3,9 +3,15 @@ BIN := rm501
 # install prefix either /usr or /usr/local on most unix systems
 PREFIX ?= /usr
 
+ifeq ($(OS),Windows_NT)
+  OPENGL_LIBS:=-lopengl32 -lglu32
+else
+  OPENGL_LIBS:=-lgl -lGLU
+endif
+
 # comment out to disable SDL GUI
 SDL_CFLAGS := -DHAVE_SDL $(shell sdl2-config --cflags) $(shell pkg-config --cflags SDL2_ttf SDL2_image)
-SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL2_image) -lGL -lGLU -lpng
+SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL2_image) $(OPENGL_LIBS) -lpng
 
 # comment out to disable Curses GUI
 #CURSES_CLFAGS := -DHAVE_NCURSES
@@ -29,7 +35,7 @@ SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL
 #TRAJGEN_LDLIBS :=
 #TRAJGEN_OBJS   := trajgen.o
 
-CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall
+CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall -std=gnu11
 LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MQTT_LDLIBS) $(TRAJGEN_LDLIBS) -lm
 LDFLAGS += -Wl,--as-needed
 
