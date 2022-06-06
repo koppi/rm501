@@ -2,6 +2,9 @@ rm501
 *.o
 *.d
 build-stamp
+debian/changelog
+debian/rm501.substvars
+token
 
 build.ninja
 build
