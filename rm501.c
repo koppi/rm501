@@ -28,7 +28,7 @@
 #ifdef HAVE_SDL
   #define HAVE_AUDIO       // working, requires HAVE_SDL
   #define HAVE_JOYSTICK    // working, requires HAVE_SDL
-  #define HAVE_PNG         // working, requires HAVE_SDL
+  //#define HAVE_PNG         // working, requires HAVE_SDL
   #define ENABLE_FPS_LIMIT // working, requires HAVE_SDL
   #ifdef ENABLE_FPS_LIMIT
     #define DEFAULT_FPS 30
