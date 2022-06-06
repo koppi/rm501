@@ -1,3 +1,5 @@
+name: ubuntu
+
 on:
   push:
     branches: [ master ]
