@@ -1825,13 +1825,13 @@ static trajgen_error_t tg_err(unsigned code, unsigned joint)
 {
   trajgen_error_details_t e;
   if (!tg) return (trajgen_error_t) code;
-  e.errno = 0;
+  e.errnom = 0;
   e.sel.joint = joint;
   e.sel.code = code;
   tg->last_error = e;
   #ifdef TG_DEBUG_LEVEL
   if(code) {
-    char s[128]; s[0]=s[127]='\0'; trajgen_errstr(tg->last_error.errno, s, 127);
+    char s[128]; s[0]=s[127]='\0'; trajgen_errstr(tg->last_error.errnom, s, 127);
     debug("# tg: trajgen_err(): ! Error: %s\n", s);
   }
   #endif
@@ -2479,7 +2479,7 @@ const char* trajgen_errstr(uint16_t errnum, char* errstr, unsigned length)
   char *errstr_p = errstr, *errstr_e = errstr+length;
   const char* tp;
   trajgen_error_details_t err;
-  err.errno = errnum;
+  err.errnom = errnum;
   do { unsigned i; for(i=0; i<length; i++) errstr[i] = '\0'; } while(0);
   switch (err.sel.code) {
     case TRAJ_ERROR_OK:
