@@ -457,6 +457,8 @@ int kins_fwd(bot_t *bot)
   bot->t[14] = py;
 
   bot->t[15] = 1;
+
+  return 0;
 }
 
 int kins_inv(bot_t *bot)
@@ -556,6 +558,8 @@ int kins_inv(bot_t *bot)
   }
 
   snprintf(bot->msg, sizeof(bot->msg), "kin_inv(%d): %s %s %s %s %s", bot->err, msg[0], msg[1], msg[2], msg[3], msg[4]);
+
+  return bot->err;
 }
 
 #ifdef HAVE_SDL
@@ -1312,9 +1316,10 @@ void spacenav_read(spacenav_t *s)
 
 int update_model(bot_t *bot_fwd, bot_t *bot_inv, int do_kins_fwd, int do_kins_inv)
 {
+  int err = 0;
   if (do_kins_inv)
   {
-    kins_inv(bot_inv);
+    err = kins_inv(bot_inv);
     if (bot_inv->err == 0)
     {
       kins_fwd(bot_inv);
@@ -1330,6 +1335,8 @@ int update_model(bot_t *bot_fwd, bot_t *bot_inv, int do_kins_fwd, int do_kins_in
     kins_fwd(bot_fwd);
     memcpy(bot_inv, bot_fwd, sizeof(bot_t));
   }
+
+  return err;
 }
 
 #ifdef HAVE_SDL
