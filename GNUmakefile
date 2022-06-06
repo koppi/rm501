@@ -20,14 +20,14 @@ SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL
 #ZMQ_LDLIBS := -l:libzmq.so.5
 
 # comment out to disable Eclipse MQTT functionality
-MQTT_CFLAGS := -DHAVE_MQTT
-MQTT_LDLIBS := -lpaho-mqtt3c
-MQTT_OBJS   := mqtt_handler.o
+#MQTT_CFLAGS := -DHAVE_MQTT
+#MQTT_LDLIBS := -lpaho-mqtt3c
+#MQTT_OBJS   := mqtt_handler.o
 
 # comment out to disable trajectory calculation functionality
-TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
-TRAJGEN_LDLIBS :=
-TRAJGEN_OBJS   := trajgen.o
+#TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
+#TRAJGEN_LDLIBS :=
+#TRAJGEN_OBJS   := trajgen.o
 
 CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall
 LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MQTT_LDLIBS) $(TRAJGEN_LDLIBS) -lm
