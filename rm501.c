@@ -131,6 +131,7 @@ int width = 640, height = 480;
 TTF_Font *sdl_font;
 
 SDL_Window   *sdl_window;
+SDL_GLContext sdl_gl_context;
 SDL_Renderer *sdl_renderer;
 
 #ifdef HAVE_AUDIO
@@ -1035,6 +1036,10 @@ void cross(float th, float l) {
         glPopMatrix();
 
         draw_hud(bot_inv);
+
+        glEnd();
+
+        SDL_GL_SwapWindow(sdl_window);
     }
 #endif
 
@@ -1559,11 +1564,15 @@ int main(int argc, char** argv) {
 	  height = sdl_displaymode.h;
 	}*/
       
+      SDL_GL_SetSwapInterval(-1);
+
       sdl_window = SDL_CreateWindow("Mitsubishi RM-501 Movemaster II Robot Simulator",
 				    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 				    width, height, sdl_flags);
       
-      sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+      sdl_gl_context = SDL_GL_CreateContext(sdl_window);
+
+      sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_SOFTWARE);
 
       set_window_icon(sdl_window);
       
@@ -1574,7 +1583,6 @@ int main(int argc, char** argv) {
       }
       
       SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-      // SDL_GL_SetSwapInterval(1);
       
       {
 	GLfloat pos[4]   = {3., 5., 2., 1.};
@@ -2092,6 +2100,7 @@ int main(int argc, char** argv) {
 
     TTF_Quit();
 	
+    SDL_GL_DeleteContext(sdl_gl_context);
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(sdl_window);
 
