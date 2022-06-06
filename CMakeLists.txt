@@ -10,7 +10,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 add_definitions(-DHAVE_SDL)
 set(SOURCES rm501.c)
 
-find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL2 REQUIRED)
 find_package(SDL2TTF REQUIRED)
 find_package(SDL2IMAGE REQUIRED)
 find_package(OpenGL REQUIRED COMPONENTS OpenGL)
@@ -30,5 +30,5 @@ add_executable(rm501 ${SOURCES})
 
 add_dependencies(rm501 OpenGL::GL)
 
-target_link_libraries(rm501 PRIVATE m SDL2::SDL2 SDL2::SDL2main ${SDL2TTF_LIBRARY} ${SDL2IMAGE_LIBRARY} OpenGL::GL OpenGL::GLU GLUT::GLUT)
+target_link_libraries(rm501 PRIVATE m SDL2 SDL2main ${SDL2TTF_LIBRARY} ${SDL2IMAGE_LIBRARY} OpenGL::GL OpenGL::GLU GLUT::GLUT)
 add_definitions(-DSDL_MAIN_HANDLED)
