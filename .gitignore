@@ -11,3 +11,8 @@ cmake_install.cmake
 CMakeFiles
 
 .vscode
+*.exe
+.vs/CMake Overview
+.vs/ProjectSettings.json
+.vs/slnx.sqlite
+.vs/VSWorkspaceState.json
