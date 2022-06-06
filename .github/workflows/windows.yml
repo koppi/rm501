@@ -26,8 +26,7 @@ jobs:
           base-devel
           cmake
           ninja
-          mingw-w64-x86_64-cmake
-          mingw-w64-x86_64-ninja
+          make
           mingw-w64-x86_64-SDL2
           mingw-w64-x86_64-SDL2_image
           mingw-w64-x86_64-SDL2_ttf
@@ -36,7 +35,7 @@ jobs:
       name: Checkout source code
 
     - name: CMake configure
-      run: cmake -B build
+      run: cmake -G 'Unix Makefiles' -B build
 
     - name: CMake build
       run: cmake --build build
