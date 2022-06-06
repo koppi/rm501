@@ -4,6 +4,7 @@ rm501
 build-stamp
 debian/changelog
 debian/rm501.substvars
+debian/files
 token
 
 build.ninja
