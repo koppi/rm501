@@ -27,9 +27,9 @@ jobs:
           cmake
           ninja
           make
-          mingw-w64-x86_64-SDL2
-          mingw-w64-x86_64-SDL2_image
-          mingw-w64-x86_64-SDL2_ttf
+          mingw-w64-i686-SDL2
+          mingw-w64-i686-SDL2_image
+          mingw-w64-i686-SDL2_ttf
 
     - uses: actions/checkout@v2
       name: Checkout source code
