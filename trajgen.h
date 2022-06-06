@@ -798,7 +798,7 @@ typedef uint16_t trajgen_error_t;
  */
 typedef union
 {
-  int16_t errno;
+  int16_t errnom;
   struct
   {
     unsigned code : 12;
