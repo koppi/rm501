@@ -49,14 +49,17 @@
 // see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj3/5463-Project-3-FA2015.pdf
 #define PROJ3
 
-#define _USE_MATH_DEFINES 1
-
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>  // EXIT_SUCCESS
 #include <stdbool.h> // for bool, true, false
+#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>  // memcpy()
 #include <signal.h>  // sigaction(), sigsuspend(), sig*()
+#ifdef __MINW32__
+#define _USE_MATH_DEFINES 1
+#endif
 #include <math.h>
 
 #ifdef HAVE_ZMQ
@@ -2126,5 +2129,5 @@ fail0:
   }
 #endif
 
-  return EXIT_SUCCESS;
+  return 0;
 }
