@@ -6,7 +6,7 @@ PREFIX ?= /usr
 ifeq ($(OS),Windows_NT)
   OPENGL_LIBS:=-lopengl32 -lglu32
 else
-  OPENGL_LIBS:=-lgl -lGLU
+  OPENGL_LIBS:=-lGL -lGLU
 endif
 
 # comment out to disable SDL GUI
