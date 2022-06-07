@@ -1792,8 +1792,8 @@ int main(int argc, char **argv)
     sdl_font_file = "/Haiku/system/data/fonts/ttfonts/DejaVuSansMono.ttf";
 #elif defined(__FreeBSD__)
     sdl_font_file = "/usr/local/share/fonts/dejavu/DejaVuSansMono.ttf";
-#elif defined(linux) // Alpine Linux
-    sdl_font_file = "/usr/share/fonts/ttf-dejavu/DejaVuSansMono.ttf";
+//#elif defined(linux) // Alpine Linux
+//    sdl_font_file = "/usr/share/fonts/ttf-dejavu/DejaVuSansMono.ttf";
 #elif defined(__linux__)
     sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
 #elif defined(__MINGW32__)
