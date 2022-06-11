@@ -44,7 +44,7 @@ jobs:
       name: Checkout source code
 
     - name: CMake configure
-      run: cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=C:\msys64\mingw64\bin\gcc.exe -G"MinGW Makefiles" -B build
+      run: cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Release -G"MinGW Makefiles" -B build
 
     - name: CMake build
       run: cmake --build build
