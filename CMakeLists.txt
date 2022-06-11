@@ -10,9 +10,12 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 add_definitions(-DHAVE_SDL)
 set(SOURCES rm501.c)
 
+set(FPHSA_NAME_MISMATCHED 1) # Suppress warnings, see https://cmake.org/cmake/help/v3.17/module/FindPackageHandleStandardArgs.html
 find_package(SDL2 REQUIRED)
 find_package(SDL2_ttf REQUIRED)
 find_package(SDL2_image REQUIRED)
+unset(FPHSA_NAME_MISMATCHED)
+
 find_package(OpenGL REQUIRED COMPONENTS OpenGL)
 find_package(GLUT REQUIRED)
 
