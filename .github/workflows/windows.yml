@@ -14,9 +14,10 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    matrix:
-      compiler: [gcc, clang]
-      msystem: [MINGW32, MINGW64]
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        msystem: [MINGW32, MINGW64]
     defaults:
       run:
         shell: msys2 {0}
