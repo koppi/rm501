@@ -53,9 +53,6 @@ jobs:
     - uses: actions/checkout@v2
       name: Checkout source code
 
-    - name: Put MSYS2_MinGW64 on PATH
-      run: echo "${{ runner.temp }}/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
     - name: CMake configure
       run: cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Release -G "MinGW Makefiles" -B build
 
