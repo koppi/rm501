@@ -53,7 +53,7 @@ make
 ./rm501 -s # start program with SDL GUI
 ```
 
-– Tested on Debian/Sid and Ubuntu 22.04 [![.github/workflows/ubuntu.yml](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml).
+– Tested on Windows 2022 [![windows](https://github.com/koppi/rm501/actions/workflows/windows.yml/badge.svg)](https://github.com/koppi/rm501/actions/workflows/windows.yml) and Ubuntu 22.04 [![.github/workflows/ubuntu.yml](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml).
 
 ## Control
 
