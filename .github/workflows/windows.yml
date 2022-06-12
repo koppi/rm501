@@ -14,9 +14,6 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        compiler: [gcc, clang]
     defaults:
       run:
         shell: msys2 {0}
@@ -31,6 +28,7 @@ jobs:
           base-devel
           cmake
           ninja
+          gcc
           make
           mingw-w64-i686-cmake
           mingw-w64-i686-ninja
@@ -44,11 +42,6 @@ jobs:
           mingw-w64-x86_64-SDL2
           mingw-w64-x86_64-SDL2_image
           mingw-w64-x86_64-SDL2_ttf
-
-    - run: pacman --noconfirm -S make gcc
-      if: ${{ matrix.compiler == 'gcc' }}
-    - run: pacman --noconfirm -S make mingw-w64-x86_64-clang
-      if: ${{ matrix.compiler == 'clang' }}
 
     - uses: actions/checkout@v2
       name: Checkout source code
