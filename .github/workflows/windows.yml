@@ -14,6 +14,9 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    matrix:
+      compiler: [gcc, clang]
+      msystem: [MINGW32, MINGW64]
     defaults:
       run:
         shell: msys2 {0}
@@ -23,6 +26,7 @@ jobs:
     steps:
     - uses: msys2/setup-msys2@v2
       with:
+        msystem: ${{ matrix.msystem }}
         update: true
         install: >-
           git
@@ -43,11 +47,23 @@ jobs:
           mingw-w64-x86_64-SDL2_image
           mingw-w64-x86_64-SDL2_ttf
 
+    - run: pacman --noconfirm -S gcc
+      if: ${{ matrix.compiler == 'gcc' }}
+    - run: pacman --noconfirm -S mingw-w64-x86_64-clang
+      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'clang') }}
+    - run: pacman --noconfirm -S mingw-w64-i686-clang
+      if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'clang') }}
+
     - uses: actions/checkout@v2
       name: Checkout source code
 
     - name: Put MSYS2_MinGW64 on PATH
       run: echo "${{ runner.temp }}/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      if: ${{ (matrix.msystem == 'MINGW64') }}
+
+    - name: Put MSYS2_MinGW32 on PATH
+      run: echo "${{ runner.temp }}/msys64/mingw32/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      if: ${{ (matrix.msystem == 'MINGW32') }}
 
     - name: CMake configure
       run: cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Release -G "MinGW Makefiles" -B build
