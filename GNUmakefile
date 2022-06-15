@@ -1,3 +1,9 @@
+CC=$(CROSS)gcc
+LD=$(CROSS)ld
+AR=$(CROSS)ar
+PKG_CONFIG=$(CROSS)pkg-config
+SDL_CONFIG=$(CROSS)sdl2-config
+
 BIN := rm501
 
 # install prefix either /usr or /usr/local on most unix systems
@@ -10,8 +16,8 @@ else
 endif
 
 # comment out to disable SDL GUI
-SDL_CFLAGS := -DHAVE_SDL $(shell sdl2-config --cflags) $(shell pkg-config --cflags SDL2_ttf SDL2_image)
-SDL_LDLIBS := $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf SDL2_image) $(OPENGL_LIBS) -lpng
+SDL_CFLAGS := -DHAVE_SDL $(shell $(SDL_CONFIG) --cflags) $(shell $(PKG_CONFIG) --cflags SDL2_ttf SDL2_image)
+SDL_LDLIBS := $(shell $(SDL_CONFIG) --libs) $(shell $(PKG_CONFIG) --libs SDL2_ttf SDL2_image) $(OPENGL_LIBS) -lpng
 
 # comment out to disable Curses GUI
 #CURSES_CLFAGS := -DHAVE_NCURSES
