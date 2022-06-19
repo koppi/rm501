@@ -12,11 +12,10 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - bionic
-          - focal
-          - impish
-          - jammy
-    runs-on: ubuntu-22.04
+          - ubuntu-18.04
+          - ubuntu-20.04
+          - ubuntu-22.04
+    runs-on: ${{ matrix.target }}
 
     steps:
     - uses: actions/checkout@v3
@@ -32,8 +31,8 @@ jobs:
       env:
         DEBFULLNAME: "Github Actions"
         DEBEMAIL: "jakob.flierl@gmail.com"
-        TARGET: ${{ matrix.target }}
       run: |
+        export TARGET=$(. /etc/lsb-release && echo $DISTRIB_CODENAME)
         git fetch --unshallow
         git fetch --tags
         VERSION="$(git describe --tags | sed -e "s/^v//" -e "s/-/+git/")"
@@ -48,7 +47,7 @@ jobs:
       run: dpkg-buildpackage -b -rfakeroot -us -uc
 
     - name: install binary package
-      run: sudo dpkg -i ../rm501*deb
+      run: sudo dpkg -i ../rm501*deb || true
 
     - name: install binary package dependencies
       run: sudo apt -f install
@@ -59,7 +58,7 @@ jobs:
     - name: upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: ubuntu-${{ matrix.target }}
+        name: ${{ matrix.target }}
         if-no-files-found: error
         path: |
           *.buildinfo
