@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.17)
-project(rm501 VERSION 0.0.1)
+project(rm501 LANGUAGES C VERSION 0.0.1)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
