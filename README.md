@@ -62,6 +62,7 @@ make
 | Key on Keyboard | Emulator Key       |
 | --------------- | ------------------ |
 | <kbd>⎋ Escape</kbd> | quit the simulator |
+| <kbd>⇥ Tab</kbd> | toggle 3D view |
 | <kbd>Q</kbd>, <kbd>W</kbd>, <kbd>E</kbd>, <kbd>R</kbd>, <kbd>T</kbd>   | increase the joint values for waist, shoulder, elbow, pitch and roll |
 | <kbd>A</kbd>, <kbd>S</kbd>, <kbd>D</kbd>, <kbd>F</kbd>, <kbd>G</kbd>   | decrease the joint values for waist, shoulder, elbow, pitch and roll |
 | <kbd>I</kbd> <kbd>K</kbd>, and direction keys (on your right-hand side) | control the end-effector position |
