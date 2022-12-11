@@ -43,6 +43,7 @@ sudo apt -y install libpng-dev          # for screenshots
 sudo apt -y install libzmq5 libzmq3-dev # for ZeroMQ
 sudo apt -y install libpaho-mqtt-dev    # for Eclipse MQTT
 sudo apt -y install mosquitto           # for Mosquitto MQTT server
+sudo apt -y install linuxcnc-uspace-dev # for LinuxCNC
 ```
 
 Compile and run:
@@ -53,7 +54,7 @@ make
 ./rm501 -s # start program with SDL GUI
 ```
 
-– Tested on Windows 2022 [![windows](https://github.com/koppi/rm501/actions/workflows/windows.yml/badge.svg)](https://github.com/koppi/rm501/actions/workflows/windows.yml) and Ubuntu 22.04 [![.github/workflows/ubuntu.yml](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml).
+– Tested on Windows 2022 [![windows](../../actions/workflows/windows.yml/badge.svg)](../../actions/workflows/windows.yml) and Ubuntu 22.04 [![.github/workflows/ubuntu.yml](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml).
 
 ## Control
 
