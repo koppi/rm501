@@ -15,13 +15,40 @@ else
   OPENGL_LIBS:=-lGL -lGLU
 endif
 
-# comment out to disable SDL GUI
-SDL_CFLAGS := -DHAVE_SDL $(shell $(SDL_CONFIG) --cflags) $(shell $(PKG_CONFIG) --cflags SDL2_ttf SDL2_image)
-SDL_LDLIBS := $(shell $(SDL_CONFIG) --libs) $(shell $(PKG_CONFIG) --libs SDL2_ttf SDL2_image) $(OPENGL_LIBS) -lpng
+REQPKG=sdl2
+REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
+ifneq ($(REQPKG),)
+  SDL_CFLAGS := -DHAVE_SDL $(shell $(SDL_CONFIG) --cflags)
+  SDL_LDLIBS := $(shell $(SDL_CONFIG) --libs) $(OPENGL_LIBS)
+endif
 
-# comment out to disable Curses GUI
-#CURSES_CLFAGS := -DHAVE_NCURSES
-#CURSES_LDLIBS := -lncursesw
+REQPKG=SDL2_ttf
+REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
+ifneq ($(REQPKG),)
+  SDL_CFLAGS += $(shell $(PKG_CONFIG) --cflags $(REQPKG))
+  SDL_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG))
+endif
+
+REQPKG=SDL2_image
+REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
+ifneq ($(REQPKG),)
+  SDL_CFLAGS += $(shell $(PKG_CONFIG) --cflags $(REQPKG))
+  SDL_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG)) -lpng
+endif
+
+REQPKG=libpng
+REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
+ifneq ($(REQPKG),)
+  SDL_CFLAGS += $(shell $(PKG_CONFIG) --cflags $(REQPKG))
+  SDL_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG))
+endif
+
+REQPKG=ncursesw
+REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
+ifneq ($(REQPKG),)
+  CURSES_CLFAGS += -DHAVE_NCURSES $(shell $(PKG_CONFIG) --cflags $(REQPKG))
+  CURSES_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG))
+endif
 
 # comment out to disable LinuxCNC / Machinekit HAL component functionality
 #HAL_CFLAGS := -DHAVE_HAL -I/usr/include/linuxcnc -DRTAPI -DTHREAD_FLAVOR_ID=RTAPI_POSIX_ID
@@ -37,9 +64,9 @@ SDL_LDLIBS := $(shell $(SDL_CONFIG) --libs) $(shell $(PKG_CONFIG) --libs SDL2_tt
 #MQTT_OBJS   := mqtt_handler.o
 
 # comment out to disable trajectory calculation functionality
-#TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
-#TRAJGEN_LDLIBS :=
-#TRAJGEN_OBJS   := trajgen.o
+TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
+TRAJGEN_LDLIBS :=
+TRAJGEN_OBJS   := trajgen.o
 
 CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall -std=gnu11
 CFLAGS  += -Wno-unused-variable
