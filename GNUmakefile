@@ -39,15 +39,15 @@ endif
 REQPKG=libpng
 REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
 ifneq ($(REQPKG),)
-  SDL_CFLAGS += $(shell $(PKG_CONFIG) --cflags $(REQPKG))
+  SDL_CFLAGS += -DHAVE_PNG $(shell $(PKG_CONFIG) --cflags $(REQPKG))
   SDL_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG))
 endif
 
 REQPKG=ncursesw
 REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
 ifneq ($(REQPKG),)
-  CURSES_CLFAGS += -DHAVE_NCURSES $(shell $(PKG_CONFIG) --cflags $(REQPKG))
-  CURSES_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG))
+  CURSES_CFLAGS := -DHAVE_NCURSES $(shell $(PKG_CONFIG) --cflags $(REQPKG))
+  CURSES_LDLIBS := $(shell $(PKG_CONFIG) --libs $(REQPKG))
 endif
 
 # comment out to disable LinuxCNC / Machinekit HAL component functionality
@@ -59,16 +59,20 @@ endif
 #ZMQ_LDLIBS := -l:libzmq.so.5
 
 # comment out to disable Eclipse MQTT functionality
-#MQTT_CFLAGS := -DHAVE_MQTT
-#MQTT_LDLIBS := -lpaho-mqtt3c
-#MQTT_OBJS   := mqtt_handler.o
+REQPKG=libmosquitto
+REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
+ifneq ($(REQPKG),)
+  MQTT_CFLAGS := -DHAVE_MQTT
+  MQTT_LDLIBS := -lpaho-mqtt3c
+  MQTT_OBJS   := mqtt_handler.o
+endif
 
 # comment out to disable trajectory calculation functionality
 TRAJGEN_CFLAGS := -DHAVE_TRAJGEN
 TRAJGEN_LDLIBS :=
 TRAJGEN_OBJS   := trajgen.o
 
-CFLAGS  += $(SDL_CFLAGS) $(CURSES_CLFAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall -std=gnu11
+CFLAGS  += $(SDL_CFLAGS) $(CURSES_CFLAGS) $(HAL_CFLAGS) $(ZMQ_CFLAGS) $(MQTT_CFLAGS) $(TRAJGEN_CFLAGS) -O2 -g -Wall -std=gnu11
 CFLAGS  += -Wno-unused-variable
 LDLIBS  += $(SDL_LDLIBS) $(CURSES_LDLIBS) $(HAL_LDLIBS) $(ZMQ_LDLIBS) $(MQTT_LDLIBS) $(TRAJGEN_LDLIBS) -lm
 LDFLAGS += -Wl,--as-needed
