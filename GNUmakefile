@@ -33,7 +33,7 @@ REQPKG=SDL2_image
 REQPKG:=$(shell $(PKG_CONFIG) --exists $(REQPKG) && echo '$(REQPKG)')
 ifneq ($(REQPKG),)
   SDL_CFLAGS += $(shell $(PKG_CONFIG) --cflags $(REQPKG))
-  SDL_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG)) -lpng
+  SDL_LDLIBS += $(shell $(PKG_CONFIG) --libs $(REQPKG)) # -lpng
 endif
 
 REQPKG=libpng
