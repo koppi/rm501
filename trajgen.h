@@ -179,7 +179,9 @@ extern "C" {
 #elif defined __MACH__
 #include <stdint.h>
 #include <sys/types.h>
-#else
+#elif defined __WIN32__
+#include <stdint.h>
+  #else
 #error "Can you please define the rttypes for this platform and send a patch? :)"
 /*
 #define int8_t char

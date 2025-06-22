@@ -7,8 +7,8 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 #set(CMAKE_CXX_STANDARD_REQUIRED YES)
 #set(CMAKE_CXX_EXTENSIONS ON)
 
-add_definitions(-DHAVE_SDL)
-set(SOURCES rm501.c)
+add_definitions(-DHAVE_SDL -DHAVE_TRAJGEN)
+set(SOURCES rm501.c trajgen.c)
 
 set(FPHSA_NAME_MISMATCHED 1) # Suppress warnings, see https://cmake.org/cmake/help/v3.17/module/FindPackageHandleStandardArgs.html
 find_package(SDL2 REQUIRED)
