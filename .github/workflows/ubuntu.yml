@@ -41,6 +41,7 @@ jobs:
             --distribution ${TARGET} \
             --package rm501 \
             --newversion ${VERSION}~${TARGET}1 \
+            --always \
             "Automatic build from Github"
         debuild -S -sa -us -uc -d
                                                                                 
