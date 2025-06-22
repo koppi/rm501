@@ -36,12 +36,11 @@ jobs:
         export TARGET=$(. /etc/lsb-release && echo $DISTRIB_CODENAME)
         git fetch --unshallow
         git fetch --tags
-        VERSION="$(git describe --tags | sed -e "s/^v//" -e "s/-/+git/")"
+        VERSION="$(git describe --always --tags | sed -e "s/^v//" -e "s/-/+git/")"
         dch --create \
             --distribution ${TARGET} \
             --package rm501 \
             --newversion ${VERSION}~${TARGET}1 \
-            --always \
             "Automatic build from Github"
         debuild -S -sa -us -uc -d
                                                                                 
