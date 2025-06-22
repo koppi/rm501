@@ -27,18 +27,13 @@ jobs:
           ninja
           gcc
           make
-          mingw-w64-i686-cmake
-          mingw-w64-i686-ninja
-          mingw-w64-i686-cc
-          mingw-w64-i686-SDL2
-          mingw-w64-i686-SDL2_image
-          mingw-w64-i686-SDL2_ttf
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-ninja
           mingw-w64-x86_64-cc
           mingw-w64-x86_64-SDL2
           mingw-w64-x86_64-SDL2_image
           mingw-w64-x86_64-SDL2_ttf
+          mingw-w64-x86_64-SDL2_freeglut
 
     - uses: actions/checkout@v2
       name: Checkout source code
