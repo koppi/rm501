@@ -1,3 +1,13 @@
+The RM501 MoverMaster is a robot arm model from Mitsubishi Electric that was popular in the 1980s. It was developed for various industrial applications such as assembly, handling, and inspection.
+
+Some of the key features of the RM501 MoverMaster are:
+
+- **Five axes**: The robot arm has five axes that allow flexible movement and positioning.
+- **Industrial applications**: The RM501 was developed for various industrial tasks such as assembly, handling, and inspection.
+- **Programmability**: The robot can be programmed to perform complex tasks.
+
+The RM501 MoverMaster was an important step in the development of industrial robots and is still used in some applications today.
+
 [![Mitsubishi RM-501 Movemaster II Robot Simulator](https://markdown-videos-api.jorgenkh.no/url?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DdLeDPIRKhOw)](https://www.youtube.com/watch?v=dLeDPIRKhOw)
 
 ## Features
