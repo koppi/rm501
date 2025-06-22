@@ -18,6 +18,11 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: update build
+      run: |
+        sudo apt -qqq -y update
+        sudo apt -y dist-upgrade
+
     - name: install devscripts
       run: |
         sudo DEBIAN_FRONTEND=noninteractive apt -qq -y install devscripts equivs lintian
