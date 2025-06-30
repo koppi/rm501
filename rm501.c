@@ -71,6 +71,9 @@
 #endif
 
 #ifdef HAVE_SDL
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <GL/glu.h>
 #include <GL/glext.h>
 
@@ -132,6 +135,7 @@ int width = 640, height = 480;
 TTF_Font *sdl_font;
 
 SDL_Window *sdl_window;
+SDL_GLContext sdl_glcontext;
 SDL_Renderer *sdl_renderer;
 
 #ifdef HAVE_AUDIO
@@ -1822,9 +1826,17 @@ int main(int argc, char **argv)
   height = sdl_displaymode.h;
 }*/
 
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+    //SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
+
     sdl_window = SDL_CreateWindow("Mitsubishi RM-501 Movemaster II Robot Simulator",
                                   SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                   width, height, sdl_flags);
+
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+    sdl_glcontext = SDL_GL_CreateContext(sdl_window);
 
     sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
 
@@ -1837,7 +1849,8 @@ int main(int argc, char **argv)
       cur_bounds = toggle_fake_fullscreen(cur_bounds);
     }
 
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    //SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    //glEnable(GL_DEBUG_OUTPUT);
 
     {
       GLfloat pos[4] = {3., 5., 2., 1.};
@@ -2495,6 +2508,7 @@ int main(int argc, char **argv)
     TTF_Quit();
 
     SDL_DestroyRenderer(sdl_renderer);
+    SDL_GL_DeleteContext(sdl_glcontext);
     SDL_DestroyWindow(sdl_window);
 
 #ifdef HAVE_AUDIO
