@@ -71,6 +71,9 @@
 #endif
 
 #ifdef HAVE_SDL
+
+#define SDL_MAIN_HANDLED
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
