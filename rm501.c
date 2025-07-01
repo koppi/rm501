@@ -75,7 +75,6 @@
 #include <windows.h>
 #endif
 #include <GL/glu.h>
-#include <GL/glext.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -187,7 +186,7 @@ char tg_err_str[1024];
 
 double rnd()
 {
-  return ((double)rand()) / RAND_MAX;
+  return ((double)rand()) / RAND_MAX; // NOLINT(cert-msc30-c, cert-msc50-cpp)
 }
 
 double roundd(double v, unsigned digits)
@@ -245,6 +244,13 @@ void tg_line(double x, double y, double z)
   p.x = isnan(x) ? tg_last_pose.x : x;
   p.y = isnan(y) ? tg_last_pose.y : y;
   p.z = isnan(z) ? tg_last_pose.z : z;
+  p.a = tg_last_pose.a;
+  p.b = tg_last_pose.b;
+  p.c = tg_last_pose.c;
+  p.u = tg_last_pose.u;
+  p.v = tg_last_pose.v;
+  p.w = tg_last_pose.w;
+
   tg_last_pose = p;
 
   fprintf(stderr, "# line {x:%.6g, y:%.6g, z:%.6g, v:%.6g, a:%.6g, tol:%.6g }\n", p.x, p.y, p.z, tg_speed, tg_accel, tg_blending);
@@ -288,24 +294,23 @@ typedef struct
 #ifdef HAVE_AUDIO
 short middle_c_gen()
 {
-  double volume = 0.05;
   short out = 0;
 
 #define AXES 5
   for (int i = 0; i < AXES; i++)
   {
+    double volume = 0.05;
     middle_c_dist[i]++; /* Take one sample */
-    int MIDDLE_C_SAMPLES = 44100 / MIDDLE_C[i];
-
+    int MIDDLE_C_SAMPLES = (int) (44100 / MIDDLE_C[i]);
     if (middle_c_dist[i] >= MIDDLE_C_SAMPLES)
       middle_c_dist[i] = 0;
 
     /* Low? */
     if (middle_c_dist[i] < MIDDLE_C_SAMPLES / 2)
-      out += -32768 * volume / AXES;
+      out += (short)(-32768 * volume / AXES);
     else
       /* High */
-      out += 32767 * volume / AXES;
+      out += (short)(32767 * volume / AXES);
   }
 #undef AXES
   return out;
@@ -313,13 +318,11 @@ short middle_c_gen()
 
 void fill_audio(void *data, Uint8 *stream, int len)
 {
-  short *buff;
-  int i;
   /* Cast */
-  buff = (short *)stream;
+  short* buff = (short*)stream;
   len /= 2; /* Because we're now using shorts */
   /* Square */
-  for (i = 0; i < len; i += 2)
+  for (int i = 0; i < len; i += 2)
   {
     buff[i] = middle_c_gen(); /* Left */
     buff[i + 1] = buff[i];    /* Right, same as left */
@@ -353,8 +356,6 @@ void close_audio()
 
 void rotate_m_axyz(double *mat, double angle, double x, double y, double z)
 {
-  int i;
-
   double m[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
   double s = sin(deg2rad(angle));
   double c = cos(deg2rad(angle));
@@ -383,7 +384,7 @@ void rotate_m_axyz(double *mat, double angle, double x, double y, double z)
   M(2, 2) = (one_c * sq(z)) + c;
 #undef M
 
-  for (i = 0; i < 4; i++)
+  for (int i = 0; i < 4; i++)
   {
 #define A(row, col) mat[(col << 2) + row]
 #define B(row, col) m[(col << 2) + row]
@@ -527,11 +528,10 @@ int kins_inv(bot_t *bot)
 
   char msg[5][256];
   double th[] = {th1, th2, th3, th4, th5};
-  int i;
 
   bot->err = 0;
 
-  for (i = 0; i < 5; i++)
+  for (int i = 0; i < 5; i++)
   {
 #ifdef KINS_INV_IGNORE_LIMITS
     if (!isnan(th[i]))
@@ -627,8 +627,8 @@ void text(int x, int y, TTF_Font *font, const char *format, ...)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-  int w = power_two_floor(msg->w) * 2;
-  int h = power_two_floor(msg->h) * 2;
+  unsigned int w = power_two_floor(msg->w) * 2;
+  unsigned int h = power_two_floor(msg->h) * 2;
 
   // Create a surface to the correct size in RGB format, and copy the old image
   SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
@@ -653,10 +653,9 @@ void text(int x, int y, TTF_Font *font, const char *format, ...)
   glTexImage2D(GL_TEXTURE_2D, 0, colors, w, h, 0, texture_format,
                GL_UNSIGNED_BYTE, s->pixels);
 
-  int z = 1;
-
   glBegin(GL_QUADS);
   {
+    int z = 1;
     glTexCoord2d(0, 0);
     glVertex3f(x, y, z);
     glTexCoord2d(1, 0);
@@ -679,10 +678,9 @@ void text(int x, int y, TTF_Font *font, const char *format, ...)
 
 void text_matrix(int x, int y, double m[])
 {
-  int i, j;
-  for (i = 0; i < 4; i++)
+  for (int i = 0; i < 4; i++)
   {
-    for (j = 0; j < 4; j++)
+    for (int j = 0; j < 4; j++)
     {
       text(x + 75 * i, y + TTF_FontHeight(sdl_font) * j, sdl_font, "%8.2f", m[4 * i + j]);
     }
@@ -812,7 +810,7 @@ void cylinder(int wire, double BASE, double TOP, double HEIGHT, double SLICES, d
   gluDeleteQuadric(QUAD);
 }
 
-void draw_bot(int wire, bot_t *bot)
+void draw_bot(int wire, const bot_t *bot)
 {
   glPushMatrix(); // 1
 
@@ -1036,7 +1034,7 @@ void draw_bot(int wire, bot_t *bot)
   glPopMatrix(); // 0
 }
 
-void scene(bot_t *bot_fwd, bot_t *bot_inv)
+void scene(const bot_t *bot_fwd, const bot_t *bot_inv)
 {
   glEnable(GL_LIGHTING);
   glEnable(GL_COLOR_MATERIAL);
@@ -1047,8 +1045,7 @@ void scene(bot_t *bot_fwd, bot_t *bot_inv)
 
   glColor3f(0.001, 0.001, 0.001);
 
-  int x;
-  for (x = -50; x <= 50; x += 5)
+  for (int x = -50; x <= 50; x += 5)
   {
     glPushMatrix();
     glTranslatef(-0.5 + x * .1, 0, 0);
@@ -1133,7 +1130,7 @@ void draw_hud(bot_t *bot)
   glMatrixMode(GL_MODELVIEW);
 }
 
-void display(bot_t *bot_fwd, bot_t *bot_inv)
+void display(const bot_t *bot_fwd, bot_t *bot_inv)
 {
   SDL_GetWindowSize(sdl_window, &width, &height);
 
@@ -1414,7 +1411,6 @@ void handle_signal(int signal)
   switch (signal)
   {
   case SIGHUP:
-    break;
   case SIGUSR1:
     break;
   case SIGINT:
@@ -1987,7 +1983,7 @@ int main(int argc, char **argv)
 
     static double old_pos[5];
 
-    for (int i = 0; i < 5; i++)
+    for (i = 0; i < 5; i++)
     {
       old_pos[i] = bot_fwd.j[i].pos;
     }
@@ -2263,7 +2259,7 @@ int main(int argc, char **argv)
 #define JOY_SCALE (1.0 / (32768.0 * 2.0))
         if (ev.jaxis.which == 0)
         {
-          // X axis motion
+          // X-axis motion
           if (ev.jaxis.axis == 0)
           {
             // Left of dead zone
@@ -2276,7 +2272,7 @@ int main(int argc, char **argv)
             {
               move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
             }
-          } // Y axis motion
+          } // Y-axis motion
           else if (ev.jaxis.axis == 1)
           {
             // Left of dead zone
@@ -2284,7 +2280,7 @@ int main(int argc, char **argv)
             {
               move_tool(&bot_inv, 2, (double)(-d * ev.jaxis.value * JOY_SCALE));
             }
-          } // Z axis motion
+          } // Z-axis motion
           else if (ev.jaxis.axis == 3)
           {
             // Left of dead zone
@@ -2379,7 +2375,7 @@ int main(int argc, char **argv)
     do_kins_inv = 0;
 
     // update joint velocity values
-    for (int i = 0; i < 5; i++)
+    for (i = 0; i < 5; i++)
     {
       bot_fwd.j[i].vel = bot_fwd.j[i].pos - old_pos[i];
       bot_inv.j[i].vel = bot_inv.j[i].pos - old_pos[i];
@@ -2410,7 +2406,7 @@ int main(int argc, char **argv)
 #ifdef HAVE_AUDIO
       if (do_audio)
       {
-        for (int i = 0; i < 5; i++)
+        for (i = 0; i < 5; i++)
         {
           MIDDLE_C[i] = fabs(bot_fwd.j[i].vel * 261.626);
         }
