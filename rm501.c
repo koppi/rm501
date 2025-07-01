@@ -1481,7 +1481,7 @@ void coord2bot(bot_t *bot, coord_t coord)
 }
 #endif
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
 
 #ifndef __MINGW32__
