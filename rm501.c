@@ -81,6 +81,12 @@
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_opengl.h>
 #include <SDL2/SDL_image.h>
+#ifndef GL_BGR
+#define GL_BGR 0x80E0
+#endif
+#ifndef GL_BGRA
+#define GL_BGRA 0x80E1
+#endif
 #endif
 
 #ifdef HAVE_NCURSES
