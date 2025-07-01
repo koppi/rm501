@@ -37,5 +37,3 @@ target_link_libraries(rm501
 )
 
 add_dependencies(rm501 OpenGL::GL)
-
-add_definitions(-DSDL_MAIN_HANDLED)
