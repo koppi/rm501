@@ -19,10 +19,7 @@
  *  MA  02110-1301  USA
  */
 
-#define PROGRAM_VERSION "0.0.1"
-
-// sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
-// for joystick access: sudo usermod -aG input $USER
+#define PROGRAM_VERSION "0.0.2"
 
 //#define HAVE_SDL           // working
 #ifdef HAVE_SDL
