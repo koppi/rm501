@@ -69,7 +69,7 @@
 
 #ifdef HAVE_SDL
 
-#define SDL_MAIN_HANDLED
+// #define SDL_MAIN_HANDLED
 
 #ifdef _WIN32
 #include <windows.h>
@@ -77,9 +77,9 @@
 #include <GL/glu.h>
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_opengl.h>
-#include <SDL2/SDL_image.h>
+#include <SDL_ttf.h>
+#include <SDL_opengl.h>
+#include <SDL_image.h>
 #ifndef GL_BGR
 #define GL_BGR 0x80E0
 #endif
