@@ -42,7 +42,7 @@ jobs:
       run: echo "${{ runner.temp }}/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: CMake configure
-      run: cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Release -G "MinGW Makefiles" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -B build
+      run: cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -B build
 
     - name: CMake build
       run: cmake --build build
