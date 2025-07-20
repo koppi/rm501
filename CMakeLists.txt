@@ -34,6 +34,7 @@ target_link_libraries(rm501
         OpenGL::GL
         OpenGL::GLU
         GLUT::GLUT
+        m
 )
 
 add_dependencies(rm501 OpenGL::GL)
