@@ -1,0 +1,12 @@
+SW3: 
+    1:  ON: xyz-mode
+        OFF: PTP-mode
+ 2,3,4: ON: EPROM-MODE
+        OFF: PC-Mode
+
+
+SW2:
+01001100
+
+SW3:
+10100000        
