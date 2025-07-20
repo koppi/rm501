@@ -1,7 +1,7 @@
 /*
  * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
  *
- * Copyright (C) 2013-2022 Jakob Flierl <jakob.flierl@gmail.com>
+ * Copyright (C) 2013-2025 Jakob Flierl <jakob.flierl@gmail.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -19,10 +19,7 @@
  *  MA  02110-1301  USA
  */
 
-#define PROGRAM_VERSION "0.0.1"
-
-// sudo apt-get -y install libsdl2-dev libsdl2-ttf-dev
-// for joystick access: sudo usermod -aG input $USER
+#define PROGRAM_VERSION "0.0.2"
 
 //#define HAVE_SDL           // working
 #ifdef HAVE_SDL
@@ -42,12 +39,6 @@
 //#define HAVE_MQTT            // unfinished
 //#define HAVE_ZMQ             // unfinished
 //#define HAVE_TRAJGEN         // unfinished
-
-// see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj2/5463-Project-2-FA2015.pdf
-#define PROJ2
-
-// see http://www2.ece.ohio-state.edu/~zheng/ece5463/proj3/5463-Project-3-FA2015.pdf
-#define PROJ3
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -72,17 +63,15 @@
 
 #ifdef HAVE_SDL
 
-#define SDL_MAIN_HANDLED
-
 #ifdef _WIN32
 #include <windows.h>
 #endif
 #include <GL/glu.h>
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_opengl.h>
-#include <SDL2/SDL_image.h>
+#include <SDL_ttf.h>
+#include <SDL_opengl.h>
+#include <SDL_image.h>
 #ifndef GL_BGR
 #define GL_BGR 0x80E0
 #endif
@@ -272,9 +261,6 @@ typedef struct
     double vel;
     double min;
     double max;
-#ifdef PROJ2
-    double tar;
-#endif
   } j[5]; // joints
 
   struct cart_s
@@ -1513,7 +1499,7 @@ int main(int argc, char *argv[])
   bot_t bot_fwd, bot_inv;
 
 #ifdef HAVE_SDL
-  int do_sdl = 0;
+  int do_sdl = 1;
   bool do_fullscreen = false;
 
   SDL_Event ev;
@@ -1555,9 +1541,9 @@ int main(int argc, char *argv[])
     {
       do_fullscreen = true;
     }
-    else if (OPTION_SET("--sdl", "-s"))
+    else if (OPTION_SET("--no-sdl", "-s"))
     {
-      do_sdl = 1;
+      do_sdl = 0;
 #endif
 #ifdef HAVE_AUDIO
     }
@@ -1623,7 +1609,7 @@ int main(int argc, char *argv[])
     fprintf(stdout, "Usage: %s [OPTIONS]\n\n"
                     " Where [OPTIONS] are zero or more of the following:\n\n"
 #ifdef HAVE_SDL
-                    "    [-s|--sdl]               SDL window mode\n"
+                    "    [-s|--no-sdl]            Hide SDL window\n"
                     "    [-f|--fullscreen]        SDL window fullscreen mode\n"
 #endif
 #ifdef HAVE_AUDIO
@@ -2137,93 +2123,6 @@ int main(int argc, char *argv[])
           rotate_tool(&bot_inv, cnt, 0, 1, 0);
         }
       }
-
-#ifdef PROJ2
-      ///////////////////////////////////////////////////////////////////////////////
-      if (keys[SDL_SCANCODE_H])
-      {
-        bot_fwd.j[0].tar = 30;
-        bot_fwd.j[1].tar = 0;
-        bot_fwd.j[2].tar = 0;
-        bot_fwd.j[3].tar = 90;
-        bot_fwd.j[4].tar = 0;
-      }
-
-      if (keys[SDL_SCANCODE_N])
-      {
-        bot_fwd.j[0].tar = -120;
-        bot_fwd.j[1].tar = 100;
-        bot_fwd.j[2].tar = -90;
-        bot_fwd.j[3].tar = 0;
-        bot_fwd.j[4].tar = 0;
-      }
-#ifdef PROJ3
-      // C: move in a circle
-      if (keys[SDL_SCANCODE_C])
-      {
-        bot_inv.proj3counter %= 360;
-        bot_inv.proj3counter++;
-        double theta = deg2rad(bot_inv.proj3counter);
-        bot_inv.t[12] = 2.8 + cos(theta) * 0.6;
-        bot_inv.t[13] = 2.4;
-        bot_inv.t[14] = sin(theta) * 0.6;
-
-        do_kins_inv = 1;
-      }
-
-      // V: reset circle counter
-      if (keys[SDL_SCANCODE_V])
-      {
-        bot_inv.proj3counter = 0;
-      }
-
-#endif
-      // H/N: move to home positions (try with the shift key to see the difference)
-      if (keys[SDL_SCANCODE_H] || keys[SDL_SCANCODE_N])
-      {
-        i = 1;
-        while (1)
-        {
-          if (bot_fwd.j[i].tar > bot_fwd.j[i].pos)
-          {
-            if (bot_fwd.j[i].tar - bot_fwd.j[i].pos < cnt)
-            {
-              bot_fwd.j[i].pos = bot_fwd.j[i].tar;
-            }
-            else
-            {
-              jog_joint(&bot_fwd, i, cnt);
-              if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT])
-              {
-                break;
-              }
-            }
-          }
-          if (bot_fwd.j[i].tar < bot_fwd.j[i].pos)
-          {
-            if (bot_fwd.j[i].tar - bot_fwd.j[i].pos > -cnt)
-            {
-              bot_fwd.j[i].pos = bot_fwd.j[i].tar;
-            }
-            else
-            {
-              jog_joint(&bot_fwd, i, -cnt);
-              if (!keys[SDL_SCANCODE_LSHIFT] && !keys[SDL_SCANCODE_RSHIFT])
-              {
-                break;
-              }
-            }
-          }
-          if (i >= 1 && i <= 3)
-            i++;
-          else if (i == 4)
-            i = 0;
-          else if (i == 0)
-            break;
-        }
-      }
-///////////////////////////////////////////////////////////////////////////////
-#endif
 
       if (ev.type == SDL_KEYDOWN)
       {

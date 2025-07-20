@@ -54,7 +54,7 @@ git clone https://github.com/koppi/rm501.git
 ```bash
 cd rm501
 make
-./rm501 -s    # Start with SDL GUI
+./rm501
 ```
 
 ---

@@ -12,7 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - ubuntu-latest
+          - ubuntu-22.04
+          - ubuntu-24.04
     runs-on: ${{ matrix.target }}
 
     steps:
@@ -36,7 +37,7 @@ jobs:
         export TARGET=$(. /etc/lsb-release && echo $DISTRIB_CODENAME)
         git fetch --unshallow
         git fetch --tags
-        VERSION="$(git describe --always --tags | sed -e "s/^v//" -e "s/-/+git/")"
+        VERSION="1-$(git describe --always --tags | sed -e "s/^v//" -e "s/-/+git/")"
         dch --create \
             --distribution ${TARGET} \
             --package rm501 \

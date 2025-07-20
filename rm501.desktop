@@ -9,5 +9,5 @@ Icon=/usr/share/icons/hicolor/512x512/apps/rm501.png
 Type=Application
 Categories=Engineering;Development
 
-Exec=rm501 -s %f
+Exec=rm501 %f
 Terminal=false
