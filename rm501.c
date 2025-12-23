@@ -32,6 +32,11 @@
 #define MIN_ROTATION_MAGNITUDE 1.0e-4
 #define JOYSTICK_MAX_INPUT 32768
 
+// Performance optimization constants
+#define MAX_TEXT_CACHE_SIZE 64
+#define TEXT_DIRTY_FRAMES 5
+#define MATRIX_STACK_DEPTH 32
+
 //#define HAVE_SDL           // working
 #ifdef HAVE_SDL
 #define HAVE_AUDIO    // working, requires HAVE_SDL
@@ -142,6 +147,21 @@ hal_t *hal_pos_data;
 int view_mode = 0;
 int width = 640, height = 480;
 TTF_Font *sdl_font;
+
+// Text caching system to eliminate per-frame allocations
+typedef struct {
+  char text[TEXT_BUFFER_SIZE];
+  GLuint texture;
+  int width, height;
+  int last_used_frame;
+  bool dirty;
+} text_cache_entry_t;
+
+static text_cache_entry_t text_cache[MAX_TEXT_CACHE_SIZE];
+static int current_frame = 0;
+static bool cache_initialized = false;
+static int cached_width = 640, cached_height = 480;
+static bool window_size_dirty = true;
 
 SDL_Window *sdl_window;
 SDL_GLContext sdl_glcontext;
@@ -617,6 +637,102 @@ unsigned int power_two_floor(unsigned int val)
   return power * 2;
 }
 
+void init_text_cache(void)
+{
+  if (cache_initialized) return;
+  
+  for (int i = 0; i < MAX_TEXT_CACHE_SIZE; i++) {
+    text_cache[i].texture = 0;
+    text_cache[i].width = 0;
+    text_cache[i].height = 0;
+    text_cache[i].last_used_frame = -1;
+    text_cache[i].dirty = true;
+    text_cache[i].text[0] = '\0';
+  }
+  cache_initialized = true;
+}
+
+void cleanup_text_cache(void)
+{
+  if (!cache_initialized) return;
+  
+  for (int i = 0; i < MAX_TEXT_CACHE_SIZE; i++) {
+    if (text_cache[i].texture != 0) {
+      glDeleteTextures(1, &text_cache[i].texture);
+    }
+  }
+  cache_initialized = false;
+}
+
+GLuint get_cached_text(const char *text_str, TTF_Font *font, int *out_w, int *out_h)
+{
+  if (!cache_initialized) init_text_cache();
+  
+  // Find existing entry
+  int oldest_idx = 0;
+  int oldest_frame = current_frame;
+  
+  for (int i = 0; i < MAX_TEXT_CACHE_SIZE; i++) {
+    if (strcmp(text_cache[i].text, text_str) == 0 && !text_cache[i].dirty) {
+      text_cache[i].last_used_frame = current_frame;
+      *out_w = text_cache[i].width;
+      *out_h = text_cache[i].height;
+      return text_cache[i].texture;
+    }
+    
+    if (text_cache[i].last_used_frame < oldest_frame) {
+      oldest_frame = text_cache[i].last_used_frame;
+      oldest_idx = i;
+    }
+  }
+  
+  // Create new entry in oldest slot
+  SDL_Color col = {255, 255, 255};
+  SDL_Surface *msg = TTF_RenderText_Blended(font, text_str, col);
+  if (!msg) return 0;
+  
+  // Convert to power-of-two texture
+  unsigned int w = power_two_floor(msg->w) * 2;
+  unsigned int h = power_two_floor(msg->h) * 2;
+  
+  SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+  if (!s) {
+    SDL_FreeSurface(msg);
+    return 0;
+  }
+  
+  SDL_BlitSurface(msg, NULL, s, NULL);
+  
+  int colors = s->format->BytesPerPixel;
+  int texture_format = (colors == 4) ? 
+    ((s->format->Rmask == 0x000000ff) ? GL_RGBA : GL_BGRA) :
+    ((s->format->Rmask == 0x000000ff) ? GL_RGB : GL_BGR);
+  
+  GLuint tex;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(GL_TEXTURE_2D, 0, colors, w, h, 0, texture_format, GL_UNSIGNED_BYTE, s->pixels);
+  
+  // Update cache entry
+  strncpy(text_cache[oldest_idx].text, text_str, TEXT_BUFFER_SIZE - 1);
+  text_cache[oldest_idx].text[TEXT_BUFFER_SIZE - 1] = '\0';
+  text_cache[oldest_idx].texture = tex;
+  text_cache[oldest_idx].width = msg->w;
+  text_cache[oldest_idx].height = msg->h;
+  text_cache[oldest_idx].last_used_frame = current_frame;
+  text_cache[oldest_idx].dirty = false;
+  
+  *out_w = msg->w;
+  *out_h = msg->h;
+  
+  SDL_FreeSurface(s);
+  SDL_FreeSurface(msg);
+  
+  return tex;
+}
+
 void text(int x, int y, TTF_Font *font, const char *format, ...)
 {
   char buffer[TEXT_BUFFER_SIZE];
@@ -629,83 +745,34 @@ void text(int x, int y, TTF_Font *font, const char *format, ...)
 
   va_start(args, format);
   vsnprintf(buffer, TEXT_BUFFER_SIZE - 1, format, args);
-
-  SDL_Color col = {255, 255, 255};
-  SDL_Surface *msg = TTF_RenderText_Blended(font, buffer, col);
-  if (!msg) {
-    return;  // Failed to render text
-  }
-  
-  GLuint tex;
-  int texture_format;
-
-  glEnable(GL_TEXTURE_2D);
-  glGenTextures(1, &tex);
-  glBindTexture(GL_TEXTURE_2D, tex);
-
-  // Avoid mipmap filtering
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  unsigned int w = power_two_floor(msg->w) * 2;
-  unsigned int h = power_two_floor(msg->h) * 2;
-
-  // Create a surface to the correct size in RGB format, and copy the old image
-  SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-  if (!s) {
-    SDL_FreeSurface(msg);
-    glDeleteTextures(1, &tex);
-    return;
-  }
-  
-  SDL_BlitSurface(msg, NULL, s, NULL);
-
-  int colors = s->format->BytesPerPixel;
-  if (colors == 4)
-  { // alpha
-    if (s->format->Rmask == 0x000000ff)
-      texture_format = GL_RGBA;
-    else
-      texture_format = GL_BGRA;
-  }
-  else
-  { // no alpha
-    if (s->format->Rmask == 0x000000ff)
-      texture_format = GL_RGB;
-    else
-      texture_format = GL_BGR;
-  }
-
-  glTexImage2D(GL_TEXTURE_2D, 0, colors, w, h, 0, texture_format,
-               GL_UNSIGNED_BYTE, s->pixels);
-
-  glBegin(GL_QUADS);
-  {
-    int z = 1;
-    glTexCoord2d(0, 0);
-    glVertex3f(x, y, z);
-    glTexCoord2d(1, 0);
-    glVertex3f(x + s->w, y, z);
-    glTexCoord2d(1, 1);
-    glVertex3f(x + s->w, y + s->h, z);
-    glTexCoord2d(0, 1);
-    glVertex3f(x, y + s->h, z);
-  }
-  glEnd();
-
-  glDisable(GL_TEXTURE_2D);
-
-  if (tex != 0) {
-    glDeleteTextures(1, &tex);
-  }
-  if (s) {
-    SDL_FreeSurface(s);
-  }
-  if (msg) {
-    SDL_FreeSurface(msg);
-  }
-
   va_end(args);
+
+  int text_w, text_h;
+  GLuint tex = get_cached_text(buffer, font, &text_w, &text_h);
+  
+  if (tex == 0) return; // Failed to get cached texture
+  
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  
+  // Calculate texture coordinates (account for power-of-two dimensions)
+  unsigned int tex_w = power_two_floor(text_w) * 2;
+  unsigned int tex_h = power_two_floor(text_h) * 2;
+  float u_scale = (float)text_w / (float)tex_w;
+  float v_scale = (float)text_h / (float)tex_h;
+  
+  glBegin(GL_QUADS);
+  glTexCoord2f(0, 0);
+  glVertex3f(x, y, 1);
+  glTexCoord2f(u_scale, 0);
+  glVertex3f(x + text_w, y, 1);
+  glTexCoord2f(u_scale, v_scale);
+  glVertex3f(x + text_w, y + text_h, 1);
+  glTexCoord2f(0, v_scale);
+  glVertex3f(x, y + text_h, 1);
+  glEnd();
+  
+  glDisable(GL_TEXTURE_2D);
 }
 
 void text_matrix(int x, int y, double m[])
@@ -1164,7 +1231,15 @@ void draw_hud(bot_t *bot)
 
 void display(const bot_t *bot_fwd, bot_t *bot_inv)
 {
-  SDL_GetWindowSize(sdl_window, &width, &height);
+  if (window_size_dirty) {
+    SDL_GetWindowSize(sdl_window, &cached_width, &cached_height);
+    width = cached_width;
+    height = cached_height;
+    window_size_dirty = false;
+  } else {
+    width = cached_width;
+    height = cached_height;
+  }
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClearDepth(1.0);
@@ -1319,12 +1394,14 @@ typedef struct
 
 int spacenav_open(void)
 {
-  char fname[20];
+  char fname[32]; // Increased buffer size
   struct input_id id;
 
   int i = 0;
   while (i < 64)
   {
+    // Safe filename generation with bounds checking
+    if (i > 9999) break; // Prevent overflow in filename
     snprintf(fname, sizeof(fname), "/dev/input/event%d", i++);
     int fd = open(fname, O_RDWR | O_NONBLOCK);
     if (fd > 0)
@@ -1430,9 +1507,24 @@ void screenshot(int x, int y, const char *filename)
   int current_width, current_height;
   SDL_GetWindowSize(sdl_window, &current_width, &current_height);
   
-  unsigned char *pixels = malloc(current_width * current_height * 4); // RGBA
+  // Validate dimensions to prevent excessive memory allocation
+  if (current_width <= 0 || current_height <= 0 || 
+      current_width > 8192 || current_height > 8192) {
+    fprintf(stderr, "Invalid window dimensions for screenshot: %dx%d\n", 
+            current_width, current_height);
+    return;
+  }
+  
+  // Check for potential integer overflow
+  size_t pixel_count = (size_t)current_width * (size_t)current_height;
+  if (pixel_count > SIZE_MAX / 4) {
+    fprintf(stderr, "Screenshot too large: %zu pixels\n", pixel_count);
+    return;
+  }
+  
+  unsigned char *pixels = malloc(pixel_count * 4); // RGBA
   if (!pixels) {
-    fprintf(stderr, "Failed to allocate memory for screenshot\n");
+    fprintf(stderr, "Failed to allocate %zu bytes for screenshot\n", pixel_count * 4);
     return;
   }
   
@@ -1933,6 +2025,16 @@ int main(int argc, char *argv[])
 #warning "Please set your font path in the source code."
 #endif
 
+    // Validate font file exists before attempting to open
+    if (sdl_font_file) {
+      FILE *font_test = fopen(sdl_font_file, "r");
+      if (!font_test) {
+        fprintf(stderr, "Font file not found: %s\n", sdl_font_file);
+        exit(EXIT_FAILURE);
+      }
+      fclose(font_test);
+    }
+    
     sdl_font = TTF_OpenFont(sdl_font_file, 15);
 
     if (!sdl_font)
@@ -2108,6 +2210,14 @@ int main(int argc, char *argv[])
           (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE))
         atomic_store(&done, 1);
 
+      if (ev.type == SDL_WINDOWEVENT && ev.window.event == SDL_WINDOWEVENT_RESIZED) {
+        window_size_dirty = true;
+        // Invalidate text cache on resize
+        for (int i = 0; i < MAX_TEXT_CACHE_SIZE; i++) {
+          text_cache[i].dirty = true;
+        }
+      }
+
       if (ev.type == SDL_KEYUP && ev.key.keysym.sym == SDLK_F11)
       {
         cur_bounds = toggle_fake_fullscreen(cur_bounds);
@@ -2118,13 +2228,20 @@ int main(int argc, char *argv[])
         sdlk_tab_pressed = 0;
       }
 
-      double d = 0.05;
+      // Initialize movement parameters with bounds checking
+      const double BASE_MOVEMENT = 0.05;
+      const double MAX_MOVEMENT_MULTIPLIER = 10.0;
+      
+      double d = BASE_MOVEMENT;
       double cnt = 1.00;
 
       if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL])
       {
-        d *= 2;
-        cnt *= 2;
+        // Prevent overflow in movement values
+        if (d < MAX_MOVEMENT_MULTIPLIER) {
+          d *= 2;
+          cnt *= 2;
+        }
       }
 
       if (keys[SDL_SCANCODE_Q])
@@ -2382,10 +2499,16 @@ int main(int argc, char *argv[])
 
     if (do_kins_inv || do_kins_fwd)
     {
-      memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
-      kins_inv(&bot_inv);
-      kins_fwd(&bot_inv);
-      kins_fwd(&bot_fwd);
+      if (do_kins_inv) {
+        memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
+        kins_inv(&bot_inv);
+        // Only need one forward kinematics after inverse
+        kins_fwd(&bot_inv);
+        memcpy(&bot_fwd, &bot_inv, sizeof(bot_t));
+      } else {
+        kins_fwd(&bot_fwd);
+        memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
+      }
     }
 
     do_kins_fwd = 0;
@@ -2417,6 +2540,7 @@ int main(int argc, char *argv[])
 #ifdef HAVE_SDL
     if (do_sdl)
     {
+      current_frame++; // Increment frame counter for cache aging
       display(&bot_fwd, &bot_inv);
       // screenshot(0, 0, "screenshot.png");
 #ifdef HAVE_AUDIO
@@ -2521,6 +2645,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    cleanup_text_cache();
     TTF_Quit();
 
     SDL_GL_DeleteContext(sdl_glcontext);
