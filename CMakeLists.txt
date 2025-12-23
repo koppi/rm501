@@ -63,3 +63,10 @@ target_link_libraries(rm501
         GLUT::GLUT
         m
 )
+
+if(WIN32)
+    add_custom_command(TARGET rm501 POST_BUILD
+        COMMAND cmd /c "for /r \"${CMAKE_BINARY_DIR}/_deps\" %i in (*.dll) do copy \"%i\" \"$<TARGET_FILE_DIR:rm501>\""
+        COMMENT "Copying DLLs to binary directory"
+    )
+endif()
