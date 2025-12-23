@@ -42,7 +42,7 @@ set(SOURCES rm501.c trajgen.c)
 add_executable(rm501 ${SOURCES})
 
 find_package(OpenGL REQUIRED COMPONENTS OpenGL)
-#find_package(GLUT REQUIRED)
+find_package(GLUT REQUIRED)
 
 if (NOT ${OPENGL_FOUND})
    message(FATAL_ERROR "OpenGL not found")
@@ -60,5 +60,6 @@ target_link_libraries(rm501
         SDL2_ttf
         OpenGL::GL
         OpenGL::GLU
+        GLUT::GLUT
         m
 )
