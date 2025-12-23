@@ -1,0 +1,96 @@
+{
+	"version": 6,
+	"configurePresets": [
+		{
+			"name": "common",
+			"hidden": true,
+			"binaryDir": "build/${presetName}",
+			"cacheVariables": {
+				"CMAKE_POLICY_VERSION_MINIMUM": "3.5"
+			}
+		},
+		{
+			"name": "debug",
+			"displayName": "Configure Debug",
+			"inherits": "common",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		},
+		{
+			"name": "release",
+			"displayName": "Configure Release",
+			"inherits": "common",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release"
+			}
+		},
+		{
+			"name": "common-windows",
+			"hidden": true,
+			"generator": "Visual Studio 17 2022",
+			"binaryDir": "build/${presetName}"
+		},
+		{
+			"name": "debug-windows",
+			"displayName": "Configure Debug Windows",
+			"inherits": "common-windows",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		},
+		{
+			"name": "release-windows",
+			"displayName": "Configure Release Windows",
+			"inherits": "common-windows",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release"
+			}
+		},
+		{
+            "name": "emscripten",
+            "displayName": "Emscripten",
+            "description": "Sets Emscripten Toolchain",
+			"inherits": "common",
+            "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+	],
+	"buildPresets": [
+		{
+			"name": "rm501-debug",
+			"displayName": "Build Debug",
+			"configurePreset": "debug",
+			"configuration": "Debug"
+		},
+		{
+			"name": "rm501-release",
+			"displayName": "Build Release",
+			"configurePreset": "release",
+			"configuration": "Release",
+			"targets": ["rm501"]
+		},
+		{
+			"name": "rm501-debug-windows",
+			"displayName": "Build Debug Windows",
+			"configurePreset": "debug-windows",
+			"configuration": "Debug"
+		},
+		{
+			"name": "rm501-release-windows",
+			"displayName": "Build Release Windows",
+			"configurePreset": "release-windows",
+			"configuration": "Release",
+			"targets": ["rm501"]
+		},
+		{
+			"name": "rm501-emscripten",
+			"displayName": "Emscripten Release",
+			"configurePreset": "emscripten",
+			"configuration": "Release",
+			"targets": ["rm501"]
+		}
+  ]
+}
