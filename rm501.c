@@ -1,7 +1,7 @@
 /*
  * rm501.c - Mitsubishi RM-501 Movemaster II Robot Simulator
  *
- * Copyright (C) 2013-2025 Jakob Flierl <jakob.flierl@gmail.com>
+ * Copyright (C) 2013-2026 Jakob Flierl <jakob.flierl@gmail.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,17 @@
 
 #define PROGRAM_VERSION "0.0.2"
 
+// Constants to replace magic numbers
+#define MSG_BUFFER_SIZE 2048
+#define TEXT_BUFFER_SIZE 256
+#define AUDIO_SAMPLE_RATE 44100
+#define MAX_RANDOM_ATTEMPTS 100
+#define MAX_WORKSPACE_REACH 10.0
+#define MAX_JOINT_MOVEMENT 10.0
+#define MAX_TOOL_MOVEMENT 5.0
+#define MIN_ROTATION_MAGNITUDE 1.0e-4
+#define JOYSTICK_MAX_INPUT 32768
+
 //#define HAVE_SDL           // working
 #ifdef HAVE_SDL
 #define HAVE_AUDIO    // working, requires HAVE_SDL
@@ -28,7 +39,7 @@
 //#define HAVE_PNG         // working, requires HAVE_SDL
 #define ENABLE_FPS_LIMIT // working, requires HAVE_SDL
 #ifdef ENABLE_FPS_LIMIT
-#define DEFAULT_FPS 30
+#define DEFAULT_FPS 60
 #endif
 #endif
 
@@ -48,7 +59,7 @@
 #include <inttypes.h>
 #include <string.h> // memcpy()
 #include <signal.h> // sigaction(), sigsuspend(), sig*()
-#ifdef __MINW32__
+#ifdef __MINGW32__
 #define _USE_MATH_DEFINES 1
 #endif
 #include <math.h>
@@ -109,7 +120,8 @@
 #include "trajgen.h"
 #endif
 
-volatile int done = 0; // SIGINT or user exit requested
+#include <stdatomic.h>
+volatile atomic_int done = 0; // SIGINT or user exit requested
 
 #ifdef HAVE_HAL
 int do_hal = 0;
@@ -201,7 +213,7 @@ void tg_echk(unsigned errnom)
   if (errnom)
   {
     fprintf(stderr, "tg error: %s\n", trajgen_errstr(tg_tg.last_error.errnom, tg_err_str, 1024));
-    exit(1); // XXX
+    done = 1; // Signal graceful shutdown instead of immediate exit
   }
 }
 
@@ -270,7 +282,7 @@ typedef struct
 
   double t[16];   // tool matrix
   int err;        // error a to joint number if inverse kinematics fails
-  char msg[2048]; // opt. message from inverse kinematics
+  char msg[MSG_BUFFER_SIZE]; // opt. message from inverse kinematics
 
 #ifdef PROJ3
   int proj3counter;
@@ -290,7 +302,17 @@ short middle_c_gen()
   {
     double volume = 0.05;
     middle_c_dist[i]++; /* Take one sample */
-    int MIDDLE_C_SAMPLES = (int) (44100 / MIDDLE_C[i]);
+    
+    // Prevent division by zero
+    if (MIDDLE_C[i] <= 0.0) {
+      continue;  // Skip this axis if frequency is invalid
+    }
+    
+    int MIDDLE_C_SAMPLES = (int) (AUDIO_SAMPLE_RATE / MIDDLE_C[i]);
+    if (MIDDLE_C_SAMPLES <= 0) {
+      continue;  // Skip if samples calculation is invalid
+    }
+    
     if (middle_c_dist[i] >= MIDDLE_C_SAMPLES)
       middle_c_dist[i] = 0;
 
@@ -350,7 +372,7 @@ void rotate_m_axyz(double *mat, double angle, double x, double y, double z)
   double c = cos(deg2rad(angle));
 
   double mag = sqrt(sq(x) + sq(y) + sq(z));
-  if (mag <= 1.0e-4)
+  if (mag <= MIN_ROTATION_MAGNITUDE)
   {
     return;
   } // no rotation, leave mat as-is
@@ -501,6 +523,11 @@ int kins_inv(bot_t *bot)
   double tp1 = c1 * px + s1 * py - bot->d5 * s234;
   double tp2 = pz - bot->d1 + bot->d5 * c234;
   double c3 = (sq(tp1) + sq(tp2) - sq(bot->a3) - sq(bot->a2)) / (2 * bot->a2 * bot->a3);
+  
+  // Clamp c3 to valid range to avoid domain errors due to floating point precision
+  if (c3 > 1.0) c3 = 1.0;
+  if (c3 < -1.0) c3 = -1.0;
+  
   double s3 = -sqrt(1 - sq(c3));
   double th3 = atan2(s3, c3);
 
@@ -540,23 +567,23 @@ int kins_inv(bot_t *bot)
 
     if (isnan(th[i]))
     {
-      snprintf(msg[i], sizeof(msg[i]), "%7s ", "nan");
+      snprintf(msg[i], TEXT_BUFFER_SIZE, "%7s ", "nan");
     }
     else if (th[i] < deg2rad(bot->j[i].min))
     {
-      snprintf(msg[i], sizeof(msg[i]), "%7.2fv", rad2deg(th[i]));
+      snprintf(msg[i], TEXT_BUFFER_SIZE, "%7.2fv", rad2deg(th[i]));
     }
     else if (th[i] > deg2rad(bot->j[i].max))
     {
-      snprintf(msg[i], sizeof(msg[i]), "%7.2f^", rad2deg(th[i]));
+      snprintf(msg[i], TEXT_BUFFER_SIZE, "%7.2f^", rad2deg(th[i]));
     }
     else
     {
-      snprintf(msg[i], sizeof(msg[i]), "%7.2f ", rad2deg(th[i]));
+      snprintf(msg[i], TEXT_BUFFER_SIZE, "%7.2f ", rad2deg(th[i]));
     }
   }
 
-  snprintf(bot->msg, sizeof(bot->msg), "kin_inv(%d): %s %s %s %s %s", bot->err, msg[0], msg[1], msg[2], msg[3], msg[4]);
+  snprintf(bot->msg, MSG_BUFFER_SIZE, "kin_inv(%d): %s %s %s %s %s", bot->err, msg[0], msg[1], msg[2], msg[3], msg[4]);
 
   return bot->err;
 }
@@ -592,7 +619,7 @@ unsigned int power_two_floor(unsigned int val)
 
 void text(int x, int y, TTF_Font *font, const char *format, ...)
 {
-  char buffer[256];
+  char buffer[TEXT_BUFFER_SIZE];
   va_list args;
 
   if (!font)
@@ -601,10 +628,14 @@ void text(int x, int y, TTF_Font *font, const char *format, ...)
   }
 
   va_start(args, format);
-  vsnprintf(buffer, 255, format, args);
+  vsnprintf(buffer, TEXT_BUFFER_SIZE - 1, format, args);
 
   SDL_Color col = {255, 255, 255};
   SDL_Surface *msg = TTF_RenderText_Blended(font, buffer, col);
+  if (!msg) {
+    return;  // Failed to render text
+  }
+  
   GLuint tex;
   int texture_format;
 
@@ -621,6 +652,12 @@ void text(int x, int y, TTF_Font *font, const char *format, ...)
 
   // Create a surface to the correct size in RGB format, and copy the old image
   SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+  if (!s) {
+    SDL_FreeSurface(msg);
+    glDeleteTextures(1, &tex);
+    return;
+  }
+  
   SDL_BlitSurface(msg, NULL, s, NULL);
 
   int colors = s->format->BytesPerPixel;
@@ -658,9 +695,15 @@ void text(int x, int y, TTF_Font *font, const char *format, ...)
 
   glDisable(GL_TEXTURE_2D);
 
-  glDeleteTextures(1, &tex);
-  SDL_FreeSurface(s);
-  SDL_FreeSurface(msg);
+  if (tex != 0) {
+    glDeleteTextures(1, &tex);
+  }
+  if (s) {
+    SDL_FreeSurface(s);
+  }
+  if (msg) {
+    SDL_FreeSurface(msg);
+  }
 
   va_end(args);
 }
@@ -1207,6 +1250,16 @@ int do_kins_inv = 0;
 
 void jog_joint(bot_t *bot, int i, double amount)
 {
+  // Validate joint index
+  if (i < 0 || i >= 5) {
+    return;
+  }
+  
+  // Limit movement to prevent sudden jumps
+  if (fabs(amount) > MAX_JOINT_MOVEMENT) {
+    amount = amount > 0 ? MAX_JOINT_MOVEMENT : -MAX_JOINT_MOVEMENT;
+  }
+  
   double tmp = bot->j[i].pos + amount;
 
   if (amount > 0)
@@ -1223,7 +1276,28 @@ void jog_joint(bot_t *bot, int i, double amount)
 
 void move_tool(bot_t *bot, int i, double amount)
 {
+  // Validate coordinate index
+  if (i < 0 || i >= 3) {
+    return;
+  }
+  
+  // Limit movement to reasonable bounds to prevent sudden jumps
+  if (fabs(amount) > MAX_TOOL_MOVEMENT) {
+    amount = amount > 0 ? MAX_TOOL_MOVEMENT : -MAX_TOOL_MOVEMENT;
+  }
+  
   bot->t[12 + i] += amount;
+  
+  // Add workspace limits for safety
+  double distance = sqrt(bot->t[12] * bot->t[12] + bot->t[13] * bot->t[13] + bot->t[14] * bot->t[14]);
+  if (distance > MAX_WORKSPACE_REACH) {
+    // Scale back to stay within workspace
+    double scale = MAX_WORKSPACE_REACH / distance;
+    bot->t[12] *= scale;
+    bot->t[13] *= scale;
+    bot->t[14] *= scale;
+  }
+  
   do_kins_inv = 1;
 }
 
@@ -1403,7 +1477,8 @@ void handle_signal(int signal)
   case SIGUSR1:
     break;
   case SIGINT:
-    done = 1;
+    atomic_store(&done, 1);
+    break;
   default:
     return;
   }
@@ -1520,7 +1595,9 @@ int main(int argc, char *argv[])
   int do_help = 0;
   int do_version = 0;
   int verbose = 0;
+#ifdef HAVE_MQTT
   int rw_mode = 0;
+#endif
 
   int i = 0;
   while (++i < argc)
@@ -1731,6 +1808,38 @@ int main(int argc, char *argv[])
   sn.fd = spacenav_open();
 #endif
 
+  // Initialize robot parameters
+  bot_fwd.d1 = 2.3;
+  bot_fwd.d5 = 1.3;
+  bot_fwd.a2 = 2.2;
+  bot_fwd.a3 = 1.6;
+
+  bot_fwd.j[0].min = -120;
+  bot_fwd.j[0].max = 180;
+
+  bot_fwd.j[1].min = -30;
+  bot_fwd.j[1].max = 100;
+
+  bot_fwd.j[2].min = -100;
+  bot_fwd.j[2].max = 0;
+
+  bot_fwd.j[3].min = -15;
+  bot_fwd.j[3].max = 195;
+
+  bot_fwd.j[4].min = -360;
+  bot_fwd.j[4].max = 360;
+
+  bot_fwd.j[0].pos = 0;
+  bot_fwd.j[1].pos = 90;
+  bot_fwd.j[2].pos = -90;
+  bot_fwd.j[3].pos = 0;
+  bot_fwd.j[4].pos = 0;
+
+  memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
+  kins_inv(&bot_inv);
+  kins_fwd(&bot_inv);
+  kins_fwd(&bot_fwd);
+
 #ifdef HAVE_SDL
   if (do_sdl)
   {
@@ -1882,43 +1991,6 @@ int main(int argc, char *argv[])
     gluPerspective(45, width / (height * 1.0), 0.1, 500);
 
     glMatrixMode(GL_MODELVIEW);
-#endif
-  }
-
-  bot_fwd.d1 = 2.3;
-  bot_fwd.d5 = 1.3;
-  bot_fwd.a2 = 2.2;
-  bot_fwd.a3 = 1.6;
-
-  bot_fwd.j[0].min = -120;
-  bot_fwd.j[0].max = 180;
-
-  bot_fwd.j[1].min = -30;
-  bot_fwd.j[1].max = 100;
-
-  bot_fwd.j[2].min = -100;
-  bot_fwd.j[2].max = 0;
-
-  bot_fwd.j[3].min = -15;
-  bot_fwd.j[3].max = 195;
-
-  bot_fwd.j[4].min = -360;
-  bot_fwd.j[4].max = 360;
-
-  bot_fwd.j[0].pos = 0;
-  bot_fwd.j[1].pos = 90;
-  bot_fwd.j[2].pos = -90;
-  bot_fwd.j[3].pos = 0;
-  bot_fwd.j[4].pos = 0;
-
-  memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
-  kins_inv(&bot_inv);
-  kins_fwd(&bot_inv);
-  kins_fwd(&bot_fwd);
-
-#ifdef HAVE_SDL
-  if (do_sdl)
-  {
 #ifdef ENABLE_FPS_LIMIT
     frames = 0;
     ft = SDL_GetTicks();
@@ -1946,7 +2018,7 @@ int main(int argc, char *argv[])
     tg_echk(trajgen_tick());
 #endif
 
-  while (!done)
+  while (!atomic_load(&done))
   {
 #ifdef HAVE_MQTT
     coord_t coord = bot2coord(&bot_inv);
@@ -1956,7 +2028,7 @@ int main(int argc, char *argv[])
     {
       // an update arrived from mqtt
 
-      int try = 100;
+      int try = MAX_RANDOM_ATTEMPTS;
       do
       {
         // try to convert multiple times until result is good
@@ -2003,7 +2075,7 @@ int main(int argc, char *argv[])
 
       if (ev.type == SDL_QUIT ||
           (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE))
-        done = 1;
+        atomic_store(&done, 1);
 
       if (ev.type == SDL_KEYUP && ev.key.keysym.sym == SDLK_F11)
       {
@@ -2158,7 +2230,7 @@ int main(int argc, char *argv[])
 #ifdef HAVE_JOYSTICK
       if (ev.type == SDL_JOYAXISMOTION)
       {
-#define JOY_SCALE (1.0 / (32768.0 * 2.0))
+#define JOY_SCALE (1.0 / (JOYSTICK_MAX_INPUT * 2.0))
         if (ev.jaxis.which == 0)
         {
           // X-axis motion
@@ -2167,12 +2239,18 @@ int main(int argc, char *argv[])
             // Left of dead zone
             if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE)
             {
-              move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
+              double movement = (double)(d * ev.jaxis.value * JOY_SCALE);
+              // Clamp movement to reasonable bounds
+              movement = fmax(fmin(movement, 1.0), -1.0);
+              move_tool(&bot_inv, 0, movement);
             }
             // Right of dead zone
             else if (ev.jaxis.value > JOYSTICK_DEAD_ZONE)
             {
-              move_tool(&bot_inv, 0, (double)(d * ev.jaxis.value * JOY_SCALE));
+              double movement = (double)(d * ev.jaxis.value * JOY_SCALE);
+              // Clamp movement to reasonable bounds
+              movement = fmax(fmin(movement, 1.0), -1.0);
+              move_tool(&bot_inv, 0, movement);
             }
           } // Y-axis motion
           else if (ev.jaxis.axis == 1)
@@ -2180,7 +2258,10 @@ int main(int argc, char *argv[])
             // Left of dead zone
             if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE)
             {
-              move_tool(&bot_inv, 2, (double)(-d * ev.jaxis.value * JOY_SCALE));
+              double movement = (double)(-d * ev.jaxis.value * JOY_SCALE);
+              // Clamp movement to reasonable bounds
+              movement = fmax(fmin(movement, 1.0), -1.0);
+              move_tool(&bot_inv, 2, movement);
             }
           } // Z-axis motion
           else if (ev.jaxis.axis == 3)
@@ -2188,7 +2269,10 @@ int main(int argc, char *argv[])
             // Left of dead zone
             if (ev.jaxis.value < -JOYSTICK_DEAD_ZONE || ev.jaxis.value > JOYSTICK_DEAD_ZONE)
             {
-              move_tool(&bot_inv, 1, (double)(-d * ev.jaxis.value * JOY_SCALE));
+              double movement = (double)(-d * ev.jaxis.value * JOY_SCALE);
+              // Clamp movement to reasonable bounds
+              movement = fmax(fmin(movement, 1.0), -1.0);
+              move_tool(&bot_inv, 1, movement);
             }
           }
         }
@@ -2234,7 +2318,7 @@ int main(int argc, char *argv[])
 #endif
       if (sn.key[0])
       {
-        done = 1;
+        atomic_store(&done, 1);
       }
     }
 #endif
@@ -2324,7 +2408,7 @@ int main(int argc, char *argv[])
 
       if (key == 'q')
       {
-        done = 1;
+        atomic_store(&done, 1);
       }
 
       move(8, 1);
