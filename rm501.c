@@ -1236,10 +1236,9 @@ void display(const bot_t *bot_fwd, bot_t *bot_inv)
   }
 
   glPopMatrix();
+  glMatrixMode(GL_MODELVIEW);
 
   draw_hud(bot_inv);
-
-  glEnd();
 
   SDL_GL_SwapWindow(sdl_window);
 }
@@ -1427,15 +1426,43 @@ void set_window_icon(SDL_Window *sdl_window)
 #ifdef HAVE_PNG
 void screenshot(int x, int y, const char *filename)
 {
-  unsigned char pixels[width * height * 6];
-  SDL_Surface *infoSurface = SDL_GetWindowSurface(sdl_window);
-  SDL_Surface *sdl_screenshot = SDL_CreateRGBSurfaceFrom(pixels, infoSurface->w, infoSurface->h, infoSurface->format->BitsPerPixel, infoSurface->w * infoSurface->format->BytesPerPixel, infoSurface->format->Rmask, infoSurface->format->Gmask, infoSurface->format->Bmask, infoSurface->format->Amask);
-
-  SDL_RenderReadPixels(sdl_renderer, &infoSurface->clip_rect, infoSurface->format->format, pixels, infoSurface->w * infoSurface->format->BytesPerPixel);
-  SDL_SavePNG(sdl_screenshot, filename);
-  SDL_FreeSurface(sdl_screenshot);
-  SDL_FreeSurface(infoSurface);
-  infoSurface = NULL;
+  // Use OpenGL to read pixels instead of SDL renderer
+  int current_width, current_height;
+  SDL_GetWindowSize(sdl_window, &current_width, &current_height);
+  
+  unsigned char *pixels = malloc(current_width * current_height * 4); // RGBA
+  if (!pixels) {
+    fprintf(stderr, "Failed to allocate memory for screenshot\n");
+    return;
+  }
+  
+  // Read from front buffer
+  glReadBuffer(GL_FRONT);
+  glReadPixels(0, 0, current_width, current_height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+  
+  // Flip image vertically (OpenGL reads from bottom-left)
+  for (int row = 0; row < current_height / 2; row++) {
+    for (int col = 0; col < current_width; col++) {
+      int src_idx = (row * current_width + col) * 4;
+      int dst_idx = ((current_height - 1 - row) * current_width + col) * 4;
+      
+      // Swap RGBA pixels
+      unsigned char temp[4];
+      memcpy(temp, &pixels[src_idx], 4);
+      memcpy(&pixels[src_idx], &pixels[dst_idx], 4);
+      memcpy(&pixels[dst_idx], temp, 4);
+    }
+  }
+  
+  SDL_Surface *sdl_screenshot = SDL_CreateRGBSurfaceFrom(pixels, current_width, current_height, 32, 
+    current_width * 4, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+  
+  if (sdl_screenshot) {
+    SDL_SavePNG(sdl_screenshot, filename);
+    SDL_FreeSurface(sdl_screenshot);
+  }
+  
+  free(pixels);
 }
 #endif
 
@@ -1926,6 +1953,14 @@ int main(int argc, char *argv[])
   height = sdl_displaymode.h;
 }*/
 
+    // Set OpenGL attributes BEFORE creating window
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+    
+    // Enable vsync to prevent tearing and reduce flickering
+    SDL_GL_SetSwapInterval(1);
+
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
     //SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
 
@@ -1933,16 +1968,12 @@ int main(int argc, char *argv[])
                                   SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                   width, height, sdl_flags);
 
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
     sdl_glcontext = SDL_GL_CreateContext(sdl_window);
 
-    sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+    // Don't create SDL renderer - it interferes with OpenGL context
+    sdl_renderer = NULL;
 
     set_window_icon(sdl_window);
-
-    SDL_RenderClear(sdl_renderer);
 
     if (do_fullscreen)
     {
@@ -2387,7 +2418,6 @@ int main(int argc, char *argv[])
     if (do_sdl)
     {
       display(&bot_fwd, &bot_inv);
-      SDL_RenderPresent(sdl_renderer);
       // screenshot(0, 0, "screenshot.png");
 #ifdef HAVE_AUDIO
       if (do_audio)
@@ -2478,8 +2508,6 @@ int main(int argc, char *argv[])
 #ifdef HAVE_SDL
   if (do_sdl)
   {
-    SDL_RenderClear(sdl_renderer);
-
     if (sdl_font)
     {
       TTF_CloseFont(sdl_font);
@@ -2495,7 +2523,6 @@ int main(int argc, char *argv[])
 
     TTF_Quit();
 
-    SDL_DestroyRenderer(sdl_renderer);
     SDL_GL_DeleteContext(sdl_glcontext);
     SDL_DestroyWindow(sdl_window);
 
