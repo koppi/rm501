@@ -1,6 +1,7 @@
-# Mitsubishi RM-501 Movemaster II Robot Simulator
-
 A cross-platform simulator for the iconic Mitsubishi RM-501 Movemaster II robot arm, popular in the 1980s for industrial assembly, handling, and inspection tasks.
+
+[![Build: Windows](../../actions/workflows/windows.yml/badge.svg)](../../actions/workflows/windows.yml)
+[![Build: Ubuntu](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml)
 
 ## Overview
 
@@ -11,8 +12,6 @@ A cross-platform simulator for the iconic Mitsubishi RM-501 Movemaster II robot 
 - Simple and portable C codebase
 
 [![YouTube Demo](https://markdown-videos-api.jorgenkh.no/url?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DdLeDPIRKhOw)](https://www.youtube.com/watch?v=dLeDPIRKhOw)
-[![Build: Windows](../../actions/workflows/windows.yml/badge.svg)](../../actions/workflows/windows.yml)
-[![Build: Ubuntu](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml)
 
 ---
 
