@@ -60,33 +60,33 @@
 	],
 	"buildPresets": [
 		{
-			"name": "rm501-debug",
+			"name": "debug",
 			"displayName": "Build Debug",
 			"configurePreset": "debug",
 			"configuration": "Debug"
 		},
 		{
-			"name": "rm501-release",
+			"name": "release",
 			"displayName": "Build Release",
 			"configurePreset": "release",
 			"configuration": "Release",
 			"targets": ["rm501"]
 		},
 		{
-			"name": "rm501-debug-windows",
+			"name": "debug-windows",
 			"displayName": "Build Debug Windows",
 			"configurePreset": "debug-windows",
 			"configuration": "Debug"
 		},
 		{
-			"name": "rm501-release-windows",
+			"name": "release-windows",
 			"displayName": "Build Release Windows",
 			"configurePreset": "release-windows",
 			"configuration": "Release",
 			"targets": ["rm501"]
 		},
 		{
-			"name": "rm501-emscripten",
+			"name": "emscripten",
 			"displayName": "Emscripten Release",
 			"configurePreset": "emscripten",
 			"configuration": "Release",
