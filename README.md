@@ -41,7 +41,7 @@ A cross-platform simulator for the iconic Mitsubishi RM-501 Movemaster II robot 
 ### Installation (Debian/Ubuntu):
 
 ```bash
-sudo apt -y install git cmake mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev freeglut3-dev
+sudo apt -y install git cmake mesa-common-dev libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
 sudo apt -y install fonts-dejavu-core
 sudo apt -y install libncursesw5-dev libpng-dev libzmq5 libzmq3-dev libpaho-mqtt-dev mosquitto linuxcnc-uspace-dev
 sudo usermod -aG input $USER # joystick access

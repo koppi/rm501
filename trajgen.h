@@ -181,6 +181,8 @@ extern "C" {
 #include <sys/types.h>
 #elif defined __WIN32__
 #include <stdint.h>
+#elif defined __EMSCRIPTEN__
+#include <stdint.h>
   #else
 #error "Can you please define the rttypes for this platform and send a patch? :)"
 /*
