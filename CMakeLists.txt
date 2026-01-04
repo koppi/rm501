@@ -73,25 +73,6 @@ endif(${SDL2_ttf_FOUND})
 add_definitions(-DHAVE_SDL -DHAVE_TRAJGEN)
 set(SOURCES rm501.c trajgen.c)
 
-# Embed font for Emscripten builds
-if(CMAKE_SYSTEM_NAME MATCHES "Emscripten")
-    # Generate C header from font file
-    add_custom_command(
-        OUTPUT ${CMAKE_BINARY_DIR}/DejaVuSansMono.h
-        COMMAND xxd -i ${CMAKE_SOURCE_DIR}/doc/DejaVuSansMono.ttf > ${CMAKE_BINARY_DIR}/DejaVuSansMono.h
-        DEPENDS ${CMAKE_SOURCE_DIR}/doc/DejaVuSansMono.ttf
-        COMMENT "Embedding DejaVuSansMono.h font"
-    )
-    
-    # Create a custom target to ensure header is generated
-    add_custom_target(embedded_font ALL
-        DEPENDS ${CMAKE_BINARY_DIR}/DejaVuSansMono.h
-    )
-    
-    list(APPEND SOURCES ${CMAKE_BINARY_DIR}/DejaVuSansMono.h)
-    add_definitions(-DHAVE_EMBEDDED_FONT)
-endif()
-
 add_executable(rm501 ${SOURCES})
 
 find_package(OpenGL REQUIRED COMPONENTS OpenGL)
@@ -124,18 +105,11 @@ if(CMAKE_SYSTEM_NAME MATCHES "Emscripten")
   
   set_target_properties(rm501 PROPERTIES
     SUFFIX ".js"
-    LINK_FLAGS "-fPIC -s ASSERTIONS=1 -s WASM=1 -s USE_WEBGL2=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','JSEvents','Browser','HEAPU8','addFunction','removeFunction'] -s EXPORTED_FUNCTIONS=['_main','_malloc','_free'] -s EXPORT_ALL=0 -s FORCE_FILESYSTEM=0 -s NO_EXIT_RUNTIME=1 -s NO_DISABLE_EXCEPTION_CATCHING=1 -s ALLOW_MEMORY_GROWTH=1 -s STACK_SIZE=32MB -s INITIAL_MEMORY=512MB -s MAXIMUM_MEMORY=2GB -s SAFE_HEAP=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s DISABLE_EXCEPTION_CATCHING=0 -s SUPPORT_LONGJMP=1 -O2 --pre-js pre.js"
+    LINK_FLAGS "-fPIC -s ASSERTIONS=1 -s WASM=1 -s USE_WEBGL2=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','JSEvents','Browser','HEAPU8','addFunction','removeFunction'] -s EXPORTED_FUNCTIONS=['_main','_malloc','_free'] -s EXPORT_ALL=0 -s FORCE_FILESYSTEM=0 -s NO_EXIT_RUNTIME=1 -s NO_DISABLE_EXCEPTION_CATCHING=1 -s ALLOW_MEMORY_GROWTH=1 -s STACK_SIZE=32MB -s INITIAL_MEMORY=512MB -s MAXIMUM_MEMORY=2GB -s SAFE_HEAP=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s DISABLE_EXCEPTION_CATCHING=0 -s SUPPORT_LONGJMP=1 -O2"
   )
   
   set(CMAKE_DISABLE_FIND_PACKAGE_HarfBuzz TRUE)
   file(COPY "index.html" DESTINATION ${CMAKE_BINARY_DIR})
-  
-  add_custom_command(TARGET rm501 PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_SOURCE_DIR}/pre.js
-    ${CMAKE_BINARY_DIR}/pre.js
-    COMMENT "Copying pre.js to build directory"
-  )
   
   add_custom_command(TARGET rm501 POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
