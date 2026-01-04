@@ -85,9 +85,9 @@
 #include <GL/glu.h>
 
 #include <SDL2/SDL.h>
-#include <SDL_ttf.h>
-#include <SDL_opengl.h>
-#include <SDL_image.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_opengl.h>
+#include <SDL2/SDL_image.h>
 #ifndef GL_BGR
 #define GL_BGR 0x80E0
 #endif

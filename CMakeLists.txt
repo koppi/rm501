@@ -4,38 +4,54 @@ project(rm501 LANGUAGES C)
 include(FetchContent)
 Set(FETCHCONTENT_QUIET FALSE)
 
-FetchContent_Declare(
-        SDL2
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-2.32.8
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-)
-FetchContent_MakeAvailable(SDL2)
+find_package(SDL2 QUIET)
+if (${SDL2_FOUND})
+  MESSAGE(STATUS "Found SDL2.")
+else (${SDL2_FOUND})
+  MESSAGE(STATUS "Could not find SDL2.")
+  FetchContent_Declare(
+    SDL2
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+    GIT_TAG release-2.32.8
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+  )
+  FetchContent_MakeAvailable(SDL2)
+endif(${SDL2_FOUND})
 
-FetchContent_Declare(
-        SDL2_image
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL_image.git
-        GIT_TAG release-2.8.8
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-)
+find_package(SDL2_image QUIET)
+if (${SDL2_image_FOUND})
+  MESSAGE(STATUS "Found SDL2_image.")
+else (${SDL2_image_FOUND})
+  MESSAGE(STATUS "Could not find SDL2_image.")
+  FetchContent_Declare(
+    SDL2_image
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL_image.git
+    GIT_TAG release-2.8.8
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+  )
+  # set(SDL2IMAGE_INSTALL OFF)
+  # set(BUILD_SHARED_LIBS FALSE)
+  FetchContent_MakeAvailable(SDL2_image)
+endif(${SDL2_image_FOUND})
 
-# set(SDL2IMAGE_INSTALL OFF)
-# set(BUILD_SHARED_LIBS FALSE)
-
-FetchContent_MakeAvailable(SDL2_image)
-
-set(SDL2TTF_VENDORED ON)
-FetchContent_Declare(
-        SDL2_ttf
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
-        GIT_TAG release-2.24.0
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-)
-FetchContent_MakeAvailable(SDL2_ttf)
-set(SDL2TTF_FREETYPE OFF)
+find_package(SDL2_ttf QUIET)
+if (${SDL2_ttf_FOUND})
+  MESSAGE(STATUS "Found SDL2_ttf.")
+else (${SDL2_ttf_FOUND})
+  MESSAGE(STATUS "Could not find SDL2_ttf.")
+  set(SDL2TTF_VENDORED ON)
+  FetchContent_Declare(
+    SDL2_ttf
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
+    GIT_TAG release-2.24.0
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+  )
+  FetchContent_MakeAvailable(SDL2_ttf)
+  set(SDL2TTF_FREETYPE OFF)
+endif(${SDL2_ttf_FOUND})
 
 add_definitions(-DHAVE_SDL -DHAVE_TRAJGEN)
 set(SOURCES rm501.c trajgen.c)
