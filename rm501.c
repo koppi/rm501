@@ -83,11 +83,16 @@
 #include <windows.h>
 #endif
 #include <GL/glu.h>
-
+#ifdef __EMSCRIPTEN__
+#include <SDL.h>
+#include <SDL_ttf.h>
+#include <SDL_image.h>
+#else
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_opengl.h>
 #include <SDL2/SDL_image.h>
+#endif
+#include <SDL2/SDL_opengl.h>
 #ifndef GL_BGR
 #define GL_BGR 0x80E0
 #endif
@@ -119,6 +124,7 @@
 #include "png.h"
 #include "png.c"
 #endif
+#include "dejavusans_ttf.h"
 #endif
 
 #ifdef HAVE_TRAJGEN
@@ -2010,36 +2016,18 @@ int main(int argc, char *argv[])
       exit(EXIT_FAILURE);
     }
 
-    char *sdl_font_file = NULL;
-#if defined(__HAIKU__)
-    sdl_font_file = "/Haiku/system/data/fonts/ttfonts/DejaVuSansMono.ttf";
-#elif defined(__FreeBSD__)
-    sdl_font_file = "/usr/local/share/fonts/dejavu/DejaVuSansMono.ttf";
-//#elif defined(linux) // Alpine Linux
-//    sdl_font_file = "/usr/share/fonts/ttf-dejavu/DejaVuSansMono.ttf";
-#elif defined(__linux__)
-    sdl_font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
-#elif defined(__MINGW32__)
-    sdl_font_file = "doc/DejaVuSansMono.ttf";
-#else
-#warning "Please set your font path in the source code."
-#endif
-
-    // Validate font file exists before attempting to open
-    if (sdl_font_file) {
-      FILE *font_test = fopen(sdl_font_file, "r");
-      if (!font_test) {
-        fprintf(stderr, "Font file not found: %s\n", sdl_font_file);
+    // Load font from memory using embedded font data
+    SDL_RWops *font_rwops = SDL_RWFromConstMem(DejaVuSans_ttf, DejaVuSans_ttf_len);
+    if (!font_rwops) {
+        fprintf(stderr, "Failed to create SDL_RWops for font: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
-      }
-      fclose(font_test);
     }
     
-    sdl_font = TTF_OpenFont(sdl_font_file, 15);
+    sdl_font = TTF_OpenFontRW(font_rwops, 1, 15); // 1 = auto-close SDL_RWops
 
     if (!sdl_font)
     {
-      fprintf(stderr, "%s: %s\n", SDL_GetError(), sdl_font_file);
+      fprintf(stderr, "Failed to load font from memory: %s\n", SDL_GetError());
       exit(EXIT_FAILURE);
     }
 
