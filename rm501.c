@@ -1982,7 +1982,12 @@ int main(int argc, char *argv[])
 #ifdef HAVE_JOYSTICK
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #endif
+#ifdef __EMSCRIPTEN__
+    // SDL_INIT_HAPTIC is not supported in Emscripten builds
+    if (SDL_Init(SDL_INIT_EVERYTHING & ~SDL_INIT_HAPTIC) < 0)
+#else
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
+#endif
     {
       fprintf(stderr, "Unable to initialise SDL: %s\n", SDL_GetError());
       exit(EXIT_FAILURE);
