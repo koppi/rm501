@@ -1,5 +1,8 @@
 A cross-platform simulator for the iconic Mitsubishi RM-501 Movemaster II robot arm, popular in the 1980s for industrial assembly, handling, and inspection tasks.
 
+![GitHub last commit](https://img.shields.io/github/last-commit/koppi/rm501)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/w/koppi/rm501)
+[![GitHub issues](https://img.shields.io/github/issues/koppi/rm501)](https://github.com/koppi/rm501/issues)
 [![Build: Windows](../../actions/workflows/windows.yml/badge.svg)](../../actions/workflows/windows.yml)
 [![Build: Ubuntu](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml)
 
