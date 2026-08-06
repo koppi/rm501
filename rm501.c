@@ -1398,23 +1398,52 @@ typedef struct
 
 #define test_bit(bit, array) (array[bit / 8] & (1 << (bit % 8)))
 
+#define USB_VENDOR_ID_LOGITECH 0x046d
+#define USB_DEVICE_ID_SPACENAVIGATOR 0xc626
+#define USB_DEVICE_ID_SPACETRAVELLER 0xc623
+#define USB_DEVICE_ID_SPACEBALL_5000 0xc603
+#define USB_VENDOR_ID_3DCONNEXION 0x256f
+
+static int spacenav_is_3d_mouse(int fd, struct input_id *id)
+{
+  if (id->vendor == USB_VENDOR_ID_LOGITECH)
+  {
+    return id->product == USB_DEVICE_ID_SPACENAVIGATOR ||
+           id->product == USB_DEVICE_ID_SPACETRAVELLER ||
+           id->product == USB_DEVICE_ID_SPACEBALL_5000;
+  }
+
+  if (id->vendor != USB_VENDOR_ID_3DCONNEXION)
+  {
+    return 0;
+  }
+
+  // 3Dconnexion 3D mice (including the Universal Receiver) report
+  // translation/rotation as six absolute axes: X Y Z RX RY RZ.
+  unsigned char abs_bits[(ABS_MAX + 7) / 8] = {0};
+  if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(abs_bits)), abs_bits) < 0)
+  {
+    return 0;
+  }
+
+  return test_bit(ABS_X, abs_bits) && test_bit(ABS_Y, abs_bits) &&
+         test_bit(ABS_Z, abs_bits) && test_bit(ABS_RX, abs_bits) &&
+         test_bit(ABS_RY, abs_bits) && test_bit(ABS_RZ, abs_bits);
+}
+
 int spacenav_open(void)
 {
-  char fname[32]; // Increased buffer size
+  char fname[32];
   struct input_id id;
 
   int i = 0;
   while (i < 64)
   {
-    // Safe filename generation with bounds checking
-    if (i > 9999) break; // Prevent overflow in filename
     snprintf(fname, sizeof(fname), "/dev/input/event%d", i++);
     int fd = open(fname, O_RDWR | O_NONBLOCK);
     if (fd > 0)
     {
-      ioctl(fd, EVIOCGID, &id);
-
-      if (id.vendor == 0x046d && (id.product == 0xc626 || id.product == 0xc623 || id.product == 0xc603))
+      if (ioctl(fd, EVIOCGID, &id) == 0 && spacenav_is_3d_mouse(fd, &id))
       {
         // fprintf(stderr, "Using device: %s\n", fname);
         return fd;
@@ -1449,13 +1478,23 @@ void spacenav_read(spacenav_t *s)
       switch (ev.type)
       {
       case EV_KEY:
-        s->key[ev.code] = ev.value; // fprintf(stderr, "Key %d pressed %d.\n", ev.code, ev.value);
+        // Buttons are reported at BTN_0 (256) and BTN_1 (257); map to key[0..1]
+        if (ev.code >= BTN_0 && ev.code < BTN_0 + (int)(sizeof(s->key) / sizeof(s->key[0])))
+        {
+          s->key[ev.code - BTN_0] = ev.value;
+        }
         break;
       case EV_REL:
-        s->pos[ev.code] = ev.value; // fprintf(stderr, "REL %d %d\n", ev.code, ev.value);
+        if (ev.code >= 0 && ev.code < (int)(sizeof(s->pos) / sizeof(s->pos[0])))
+        {
+          s->pos[ev.code] += ev.value; // REL events are deltas; accumulate them
+        }
         break;
       case EV_ABS:
-        s->pos[ev.code] = ev.value; // fprintf(stderr, "ABS %d %d\n", ev.code, ev.value);
+        if (ev.code >= 0 && ev.code < (int)(sizeof(s->pos) / sizeof(s->pos[0])))
+        {
+          s->pos[ev.code] = ev.value;
+        }
         break;
       default:
         break;
