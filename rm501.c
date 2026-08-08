@@ -1226,7 +1226,7 @@ void draw_hud(bot_t *bot)
 
   if (strlen(bot->msg))
   {
-    text(15, height - TTF_FontHeight(sdl_font) * 1.5, sdl_font, bot->msg);
+    text(15, height - TTF_FontHeight(sdl_font) * 1.5, sdl_font, "%s", bot->msg);
   }
 
   glMatrixMode(GL_PROJECTION);
@@ -1487,7 +1487,7 @@ void spacenav_read(spacenav_t *s)
       case EV_REL:
         if (ev.code >= 0 && ev.code < (int)(sizeof(s->pos) / sizeof(s->pos[0])))
         {
-          s->pos[ev.code] += ev.value; // REL events are deltas; accumulate them
+          s->pos[ev.code] = ev.value; // REL events report the current displacement each read
         }
         break;
       case EV_ABS:
@@ -1998,6 +1998,8 @@ int main(int argc, char *argv[])
   bot_fwd.j[2].pos = -90;
   bot_fwd.j[3].pos = 0;
   bot_fwd.j[4].pos = 0;
+
+  bot_fwd.grip = false;
 
   memcpy(&bot_inv, &bot_fwd, sizeof(bot_t));
   kins_inv(&bot_inv);
